@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>BIM Unified KPI Dashboard</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+<style>
+body{font-family:Arial;margin:20px}
+.card{border:1px solid #ddd;padding:15px;margin:10px;border-radius:6px}
+.kpi{font-size:22px;font-weight:bold}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.good{color:#4caf50}
+.warn{color:#ff9800}
+.bad{color:#f44336}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+function App(){
+ return (
+  <div>
+   <h1>BIM Unified KPI Dashboard</h1>
+   <div className="grid">
+    <div className="card">
+     <h3>RFIs</h3>
+     <div className="kpi warn">Open: 0</div>
+     <div className="kpi good">Closed: 0</div>
+    </div>
+    <div className="card">
+     <h3>Clashes</h3>
+     <div className="kpi bad">Open: 0</div>
+     <div className="kpi good">Resolved: 0</div>
+    </div>
+    <div className="card">
+     <h3>Model Maturity (LOD)</h3>
+     <div className="kpi">Complete: 0 / 0</div>
+    </div>
+   </div>
+   <p>This is the correct BIM web app (GitHub Pages ready).</p>
+  </div>
+ );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
