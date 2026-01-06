@@ -4,66 +4,73 @@
 <meta charset="UTF-8">
 <title>SWITZELINT – BIM LOD Planner</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
+button{cursor:pointer}
 .app{display:flex;height:100vh}
 .sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
 .sidebar h1{font-size:18px;margin:0}
 .sidebar h2{font-size:13px;color:#cbd5e1;margin:5px 0 15px}
-.sidebar button, .sidebar select{
+.sidebar button,select,input{
 width:100%;padding:10px;margin-bottom:8px;border:none;
-background:#374151;color:#fff;border-radius:4px;cursor:pointer
+background:#374151;color:#fff;border-radius:4px
 }
-
 .main{flex:1;padding:20px;overflow:auto}
 .topbar{display:flex;justify-content:space-between;margin-bottom:15px}
-.topbar button{padding:8px 14px;border:none;border-radius:4px;background:#2563eb;color:#fff;cursor:pointer}
-
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
 .kpi{background:#fff;padding:15px;border-radius:6px}
 .kpi strong{font-size:24px}
-
-.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
 .modal-content{background:#fff;padding:20px;width:320px;border-radius:6px}
-.modal-content input,select{width:100%;padding:8px;margin-bottom:8px}
-.modal-content button{width:100%;padding:10px;margin-top:5px}
+.modal-content input,select,button{width:100%;padding:10px;margin-bottom:8px}
+table{width:100%;background:#fff;border-collapse:collapse}
+th,td{padding:10px;border:1px solid #ddd;text-align:left}
 </style>
 </head>
 
 <body>
 <div id="app"></div>
 
-<div class="modal" id="taskModal">
-<div class="modal-content">
-<h3>Task</h3>
-<input id="name" placeholder="Task name">
-<select id="discipline"><option>ARC</option><option>STR</option><option>MEP</option></select>
-<input id="lodCurrent" placeholder="LOD Current">
-<input id="lodTarget" placeholder="LOD Target">
-<select id="status"><option>Backlog</option><option>In Progress</option><option>Review</option><option>Approved</option></select>
-<input id="team" placeholder="Assigned Team">
-<input id="due" type="date">
-<button onclick="saveTask()">Save</button>
-<button onclick="deleteTask()" style="background:#ef4444;color:#fff">Delete</button>
-<button onclick="closeModal()">Close</button>
-</div>
-</div>
-
 <script>
-let clientMode=JSON.parse(localStorage.getItem("clientMode")||"false");
+let user=JSON.parse(localStorage.getItem("user"));
 let projects=JSON.parse(localStorage.getItem("projects")||"{}");
 let currentProject=localStorage.getItem("currentProject")||"Project Alpha";
 if(!projects[currentProject]) projects[currentProject]=[];
-let editIndex=null;
 
-function saveProjects(){
-localStorage.setItem("projects",JSON.stringify(projects));
-localStorage.setItem("currentProject",currentProject);
-}
+function save(){localStorage.setItem("projects",JSON.stringify(projects));localStorage.setItem("currentProject",currentProject)}
 
 const app=document.getElementById("app");
+
+if(!user){login();} else {render();}
+
+function login(){
+app.innerHTML=`
+<div class="modal">
+<div class="modal-content">
+<h3>Login</h3>
+<input id="username" placeholder="Your name">
+<select id="role">
+<option>BIM Manager</option>
+<option>Team Member</option>
+<option>Client</option>
+</select>
+<button onclick="doLogin()">Login</button>
+</div>
+</div>`;
+}
+
+function doLogin(){
+user={name:username.value,role:role.value};
+localStorage.setItem("user",JSON.stringify(user));
+render();
+}
+
+function logout(){
+localStorage.removeItem("user");
+location.reload();
+}
 
 function render(){
 const tasks=projects[currentProject];
@@ -71,17 +78,18 @@ app.innerHTML=`
 <div class="app">
 <div class="sidebar">
 <h1>SWITZELINT</h1>
-<h2>BIM LOD Planner</h2>
+<h2>${user.role}</h2>
 
+${user.role==="BIM Manager"?`
 <select onchange="switchProject(this.value)">
-${Object.keys(projects).map(p=>`
-<option ${p===currentProject?"selected":""}>${p}</option>`).join("")}
+${Object.keys(projects).map(p=>`<option ${p===currentProject?"selected":""}>${p}</option>`).join("")}
 </select>
-
 <button onclick="addProject()">+ New Project</button>
-<button onclick="toggleClient()">${clientMode?"Switch to Admin":"Switch to Client"}</button>
-${clientMode?"":"<button onclick='openNew()'>+ New Task</button>"}
+`:``}
+
+${user.role!=="Client"?`<button onclick="addTask()">+ New Task</button>`:``}
 <button onclick="exportCSV()">Export Report</button>
+<button onclick="logout()">Logout</button>
 </div>
 
 <div class="main">
@@ -96,76 +104,39 @@ const total=tasks.length;
 const approved=tasks.filter(t=>t.status==="Approved").length;
 const progress=tasks.reduce((a,t)=>a+(+t.lodCurrent||0)/(+t.lodTarget||1),0);
 const percent=total?Math.round((progress/total)*100):0;
-
 return `<div class="kpis">
 <div class="kpi"><h4>Total Tasks</h4><strong>${total}</strong></div>
 <div class="kpi"><h4>Approved</h4><strong>${approved}</strong></div>
 <div class="kpi"><h4>Overall LOD %</h4><strong>${percent}%</strong></div>
-<div class="kpi"><h4>ARC</h4><strong>${tasks.filter(t=>t.discipline==="ARC").length}</strong></div>
-<div class="kpi"><h4>STR</h4><strong>${tasks.filter(t=>t.discipline==="STR").length}</strong></div>
-<div class="kpi"><h4>MEP</h4><strong>${tasks.filter(t=>t.discipline==="MEP").length}</strong></div>
 </div>`;
 }
 
-function switchProject(p){
-currentProject=p;
-saveProjects();render();
-}
-
 function addProject(){
-const name=prompt("Project name?");
+const n=prompt("Project name?");
+if(n){projects[n]=[];currentProject=n;save();render();}
+}
+
+function switchProject(p){currentProject=p;save();render();}
+
+function addTask(){
+const name=prompt("Task name?");
 if(name){
-projects[name]=[];
-currentProject=name;
-saveProjects();render();
+projects[currentProject].push({name,discipline:"ARC",lodCurrent:0,lodTarget:300,status:"Backlog",team:user.name});
+save();render();
 }
-}
-
-function toggleClient(){
-clientMode=!clientMode;
-localStorage.setItem("clientMode",JSON.stringify(clientMode));
-render();
-}
-
-function openNew(){
-editIndex=null;
-document.getElementById("taskModal").style.display="flex";
-document.querySelectorAll("#taskModal input,select").forEach(e=>e.value="");
-}
-
-function saveTask(){
-const tasks=projects[currentProject];
-const t={name:name.value,discipline:discipline.value,lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,status:status.value,team:team.value,due:due.value};
-editIndex===null?tasks.push(t):tasks[editIndex]=t;
-saveProjects();closeModal();render();
-}
-
-function deleteTask(){
-if(editIndex!==null){
-projects[currentProject].splice(editIndex,1);
-saveProjects();
-}
-closeModal();render();
-}
-
-function closeModal(){
-document.getElementById("taskModal").style.display="none";
 }
 
 function exportCSV(){
-const tasks=projects[currentProject];
-let csv="Task,Discipline,Status,Team,LOD Current,LOD Target,Due Date\n";
-tasks.forEach(t=>{
-csv+=`${t.name},${t.discipline},${t.status},${t.team},${t.lodCurrent},${t.lodTarget},${t.due}\n`;
+let csv="Task,Status,LOD Current,LOD Target\n";
+projects[currentProject].forEach(t=>{
+csv+=`${t.name},${t.status},${t.lodCurrent},${t.lodTarget}\n`;
 });
 const blob=new Blob([csv],{type:"text/csv"});
 const a=document.createElement("a");
 a.href=URL.createObjectURL(blob);
-a.download=`${currentProject}_LOD_Report.csv`;
+a.download=currentProject+"_Report.csv";
 a.click();
 }
-
-render();
 </script>
 </body>
 </html>
