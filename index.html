@@ -9,10 +9,13 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .app{display:flex;height:100vh}
-.sidebar{width:240px;background:#1f2933;color:#fff;padding:20px}
+.sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
 .sidebar h1{font-size:18px;margin:0}
-.sidebar h2{font-size:13px;color:#cbd5e1;margin:5px 0 20px}
-.sidebar button{width:100%;padding:10px;margin-bottom:8px;border:none;background:#374151;color:#fff;border-radius:4px;cursor:pointer}
+.sidebar h2{font-size:13px;color:#cbd5e1;margin:5px 0 15px}
+.sidebar button, .sidebar select{
+width:100%;padding:10px;margin-bottom:8px;border:none;
+background:#374151;color:#fff;border-radius:4px;cursor:pointer
+}
 
 .main{flex:1;padding:20px;overflow:auto}
 .topbar{display:flex;justify-content:space-between;margin-bottom:15px}
@@ -21,9 +24,6 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
 .kpi{background:#fff;padding:15px;border-radius:6px}
 .kpi strong{font-size:24px}
-
-table{width:100%;background:#fff;border-collapse:collapse}
-th,td{padding:10px;border:1px solid #ddd;text-align:left}
 
 .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center}
 .modal-content{background:#fff;padding:20px;width:320px;border-radius:6px}
@@ -53,29 +53,45 @@ th,td{padding:10px;border:1px solid #ddd;text-align:left}
 
 <script>
 let clientMode=JSON.parse(localStorage.getItem("clientMode")||"false");
-let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+let projects=JSON.parse(localStorage.getItem("projects")||"{}");
+let currentProject=localStorage.getItem("currentProject")||"Project Alpha";
+if(!projects[currentProject]) projects[currentProject]=[];
 let editIndex=null;
+
+function saveProjects(){
+localStorage.setItem("projects",JSON.stringify(projects));
+localStorage.setItem("currentProject",currentProject);
+}
+
 const app=document.getElementById("app");
 
 function render(){
+const tasks=projects[currentProject];
 app.innerHTML=`
 <div class="app">
 <div class="sidebar">
 <h1>SWITZELINT</h1>
 <h2>BIM LOD Planner</h2>
+
+<select onchange="switchProject(this.value)">
+${Object.keys(projects).map(p=>`
+<option ${p===currentProject?"selected":""}>${p}</option>`).join("")}
+</select>
+
+<button onclick="addProject()">+ New Project</button>
 <button onclick="toggleClient()">${clientMode?"Switch to Admin":"Switch to Client"}</button>
 ${clientMode?"":"<button onclick='openNew()'>+ New Task</button>"}
 <button onclick="exportCSV()">Export Report</button>
 </div>
 
 <div class="main">
-<div class="topbar"><strong>${clientMode?"Client Dashboard":"LOD Management Dashboard"}</strong></div>
-${dashboard()}
+<div class="topbar"><strong>${currentProject} – Dashboard</strong></div>
+${dashboard(tasks)}
 </div>
 </div>`;
 }
 
-function dashboard(){
+function dashboard(tasks){
 const total=tasks.length;
 const approved=tasks.filter(t=>t.status==="Approved").length;
 const progress=tasks.reduce((a,t)=>a+(+t.lodCurrent||0)/(+t.lodTarget||1),0);
@@ -91,16 +107,18 @@ return `<div class="kpis">
 </div>`;
 }
 
-function exportCSV(){
-let csv="Task,Discipline,Status,Team,LOD Current,LOD Target,Due Date\n";
-tasks.forEach(t=>{
-csv+=`${t.name},${t.discipline},${t.status},${t.team},${t.lodCurrent},${t.lodTarget},${t.due}\n`;
-});
-const blob=new Blob([csv],{type:"text/csv"});
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="SWITZELINT_BIM_LOD_Report.csv";
-a.click();
+function switchProject(p){
+currentProject=p;
+saveProjects();render();
+}
+
+function addProject(){
+const name=prompt("Project name?");
+if(name){
+projects[name]=[];
+currentProject=name;
+saveProjects();render();
+}
 }
 
 function toggleClient(){
@@ -116,18 +134,36 @@ document.querySelectorAll("#taskModal input,select").forEach(e=>e.value="");
 }
 
 function saveTask(){
+const tasks=projects[currentProject];
 const t={name:name.value,discipline:discipline.value,lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,status:status.value,team:team.value,due:due.value};
 editIndex===null?tasks.push(t):tasks[editIndex]=t;
-localStorage.setItem("tasks",JSON.stringify(tasks));
-closeModal();render();
+saveProjects();closeModal();render();
 }
 
 function deleteTask(){
-if(editIndex!==null){tasks.splice(editIndex,1);localStorage.setItem("tasks",JSON.stringify(tasks))}
+if(editIndex!==null){
+projects[currentProject].splice(editIndex,1);
+saveProjects();
+}
 closeModal();render();
 }
 
-function closeModal(){document.getElementById("taskModal").style.display="none"}
+function closeModal(){
+document.getElementById("taskModal").style.display="none";
+}
+
+function exportCSV(){
+const tasks=projects[currentProject];
+let csv="Task,Discipline,Status,Team,LOD Current,LOD Target,Due Date\n";
+tasks.forEach(t=>{
+csv+=`${t.name},${t.discipline},${t.status},${t.team},${t.lodCurrent},${t.lodTarget},${t.due}\n`;
+});
+const blob=new Blob([csv],{type:"text/csv"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download=`${currentProject}_LOD_Report.csv`;
+a.click();
+}
 
 render();
 </script>
