@@ -26,6 +26,10 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 table{width:100%;background:#fff;border-collapse:collapse}
 th,td{padding:10px;border:1px solid #ddd;text-align:left}
 
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.kpi{background:#fff;padding:15px;border-radius:6px}
+.kpi strong{font-size:24px}
+
 .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center}
 .modal-content{background:#fff;padding:20px;width:320px;border-radius:6px}
 .modal-content input,select{width:100%;padding:8px;margin-bottom:8px}
@@ -37,33 +41,24 @@ th,td{padding:10px;border:1px solid #ddd;text-align:left}
 <div id="app"></div>
 
 <div class="modal" id="taskModal">
-  <div class="modal-content">
-    <h3>Task</h3>
-    <input id="name" placeholder="Task name">
-    <select id="discipline">
-      <option>ARC</option><option>STR</option><option>MEP</option>
-    </select>
-    <input id="lodCurrent" placeholder="LOD Current">
-    <input id="lodTarget" placeholder="LOD Target">
-    <select id="status">
-      <option>Backlog</option>
-      <option>In Progress</option>
-      <option>Review</option>
-      <option>Approved</option>
-    </select>
-    <input id="team" placeholder="Assigned Team">
-    <input id="due" type="date">
-    <button onclick="saveTask()">Save</button>
-    <button onclick="deleteTask()" style="background:#ef4444;color:#fff">Delete</button>
-    <button onclick="closeModal()">Close</button>
-  </div>
+<div class="modal-content">
+<h3>Task</h3>
+<input id="name" placeholder="Task name">
+<select id="discipline"><option>ARC</option><option>STR</option><option>MEP</option></select>
+<input id="lodCurrent" placeholder="LOD Current">
+<input id="lodTarget" placeholder="LOD Target">
+<select id="status"><option>Backlog</option><option>In Progress</option><option>Review</option><option>Approved</option></select>
+<input id="team" placeholder="Assigned Team">
+<input id="due" type="date">
+<button onclick="saveTask()">Save</button>
+<button onclick="deleteTask()" style="background:#ef4444;color:#fff">Delete</button>
+<button onclick="closeModal()">Close</button>
+</div>
 </div>
 
 <script>
-let view="kanban";
-let editIndex=null;
+let view="dashboard", editIndex=null;
 let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-
 const app=document.getElementById("app");
 
 function render(){
@@ -78,13 +73,32 @@ app.innerHTML=`
 <div class="main">
 <div class="topbar">
 <div>
+<button onclick="setView('dashboard')">Dashboard</button>
 <button onclick="setView('kanban')">Kanban</button>
 <button onclick="setView('list')">List</button>
 </div>
-<strong>LOD Planning</strong>
+<strong>LOD Management</strong>
 </div>
-${view==="kanban"?kanban():list()}
+${view==="dashboard"?dashboard():view==="kanban"?kanban():list()}
 </div>
+</div>`;
+}
+
+function dashboard(){
+const total=tasks.length;
+const approved=tasks.filter(t=>t.status==="Approved").length;
+const lodProgress=tasks.reduce((a,t)=>a+(+t.lodCurrent||0)/(+t.lodTarget||1),0);
+const percent=total?Math.round((lodProgress/total)*100):0;
+
+function disc(d){return tasks.filter(t=>t.discipline===d).length}
+
+return `<div class="kpis">
+<div class="kpi"><h4>Total Tasks</h4><strong>${total}</strong></div>
+<div class="kpi"><h4>Approved</h4><strong>${approved}</strong></div>
+<div class="kpi"><h4>Overall LOD %</h4><strong>${percent}%</strong></div>
+<div class="kpi"><h4>ARC Tasks</h4><strong>${disc("ARC")}</strong></div>
+<div class="kpi"><h4>STR Tasks</h4><strong>${disc("STR")}</strong></div>
+<div class="kpi"><h4>MEP Tasks</h4><strong>${disc("MEP")}</strong></div>
 </div>`;
 }
 
@@ -113,40 +127,10 @@ ${tasks.map((t,i)=>`
 }
 
 function setView(v){view=v;render()}
-
-function openNew(){
-editIndex=null;
-document.getElementById("taskModal").style.display="flex";
-document.querySelectorAll("#taskModal input,select").forEach(e=>e.value="");
-}
-
-function edit(i){
-editIndex=i;
-const t=tasks[i];
-["name","discipline","lodCurrent","lodTarget","status","team","due"]
-.forEach(id=>document.getElementById(id).value=t[id]||"");
-document.getElementById("taskModal").style.display="flex";
-}
-
-function saveTask(){
-const t={
-name:name.value,discipline:discipline.value,
-lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,
-status:status.value,team:team.value,due:due.value
-};
-editIndex===null?tasks.push(t):tasks[editIndex]=t;
-localStorage.setItem("tasks",JSON.stringify(tasks));
-closeModal();render();
-}
-
-function deleteTask(){
-if(editIndex!==null){
-tasks.splice(editIndex,1);
-localStorage.setItem("tasks",JSON.stringify(tasks));
-}
-closeModal();render();
-}
-
+function openNew(){editIndex=null;document.getElementById("taskModal").style.display="flex";document.querySelectorAll("#taskModal input,select").forEach(e=>e.value="")}
+function edit(i){editIndex=i;const t=tasks[i];["name","discipline","lodCurrent","lodTarget","status","team","due"].forEach(id=>document.getElementById(id).value=t[id]||"");document.getElementById("taskModal").style.display="flex"}
+function saveTask(){const t={name:name.value,discipline:discipline.value,lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,status:status.value,team:team.value,due:due.value};editIndex===null?tasks.push(t):tasks[editIndex]=t;localStorage.setItem("tasks",JSON.stringify(tasks));closeModal();render()}
+function deleteTask(){if(editIndex!==null){tasks.splice(editIndex,1);localStorage.setItem("tasks",JSON.stringify(tasks))}closeModal();render()}
 function closeModal(){document.getElementById("taskModal").style.display="none"}
 
 render();
