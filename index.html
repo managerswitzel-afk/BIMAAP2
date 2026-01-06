@@ -1,51 +1,188 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>BIM Unified KPI Dashboard</title>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+<title>SWITZELINT – BIM LOD Planner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body{font-family:Arial;margin:20px}
-.card{border:1px solid #ddd;padding:15px;margin:10px;border-radius:6px}
-.kpi{font-size:22px;font-weight:bold}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
-.good{color:#4caf50}
-.warn{color:#ff9800}
-.bad{color:#f44336}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f4f6;
+}
+.app {
+  display: flex;
+  height: 100vh;
+}
+.sidebar {
+  width: 240px;
+  background: #1f2933;
+  color: #fff;
+  padding: 20px;
+}
+.sidebar h1 {
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+.sidebar h2 {
+  font-size: 14px;
+  font-weight: normal;
+  margin-bottom: 20px;
+  color: #cbd5e1;
+}
+.sidebar button {
+  width: 100%;
+  background: #374151;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.main {
+  flex: 1;
+  padding: 20px;
+  overflow: auto;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+.topbar button {
+  padding: 8px 14px;
+  margin-right: 8px;
+  border: none;
+  cursor: pointer;
+  border-radius: 4px;
+  background: #2563eb;
+  color: #fff;
+}
+.board {
+  display: flex;
+  gap: 12px;
+}
+.column {
+  background: #e5e7eb;
+  padding: 10px;
+  width: 260px;
+  border-radius: 6px;
+}
+.column h3 {
+  margin-top: 0;
+}
+.card {
+  background: #fff;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-left: 4px solid #2563eb;
+  border-radius: 4px;
+}
+.card small {
+  display: block;
+  color: #555;
+  margin-top: 4px;
+}
+table {
+  width: 100%;
+  background: #fff;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 10px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
 </style>
 </head>
-<body>
-<div id="root"></div>
 
-<script type="text/babel">
-function App(){
- return (
-  <div>
-   <h1>BIM Unified KPI Dashboard</h1>
-   <div className="grid">
-    <div className="card">
-     <h3>RFIs</h3>
-     <div className="kpi warn">Open: 0</div>
-     <div className="kpi good">Closed: 0</div>
+<body>
+<div id="app"></div>
+
+<script>
+const app = document.getElementById("app");
+let view = "kanban";
+
+const tasks = [
+  { name: "ARC Model LOD 200", status: "Backlog", team: "Architecture" },
+  { name: "STR Model LOD 300", status: "In Progress", team: "Structure" },
+  { name: "MEP Coordination", status: "Review", team: "MEP" }
+];
+
+function render() {
+  app.innerHTML = `
+  <div class="app">
+    <div class="sidebar">
+      <h1>SWITZELINT</h1>
+      <h2>BIM LOD Planner</h2>
+      <button>Project Alpha</button>
+      <button>Project Beta</button>
     </div>
-    <div className="card">
-     <h3>Clashes</h3>
-     <div className="kpi bad">Open: 0</div>
-     <div className="kpi good">Resolved: 0</div>
+
+    <div class="main">
+      <div class="topbar">
+        <div>
+          <button onclick="setView('kanban')">Kanban</button>
+          <button onclick="setView('list')">List</button>
+        </div>
+        <strong>LOD Planning View</strong>
+      </div>
+
+      ${view === "kanban" ? renderKanban() : renderList()}
     </div>
-    <div className="card">
-     <h3>Model Maturity (LOD)</h3>
-     <div className="kpi">Complete: 0 / 0</div>
-    </div>
-   </div>
-   <p>This is the correct BIM web app (GitHub Pages ready).</p>
   </div>
- );
+  `;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+function renderKanban() {
+  const columns = ["Backlog", "In Progress", "Review", "Approved"];
+  return `
+  <div class="board">
+    ${columns.map(col => `
+      <div class="column">
+        <h3>${col}</h3>
+        ${tasks.filter(t => t.status === col).map(t => `
+          <div class="card">
+            ${t.name}
+            <small>Team: ${t.team}</small>
+          </div>
+        `).join("")}
+      </div>
+    `).join("")}
+  </div>
+  `;
+}
+
+function renderList() {
+  return `
+  <table>
+    <tr>
+      <th>Task</th>
+      <th>Status</th>
+      <th>Team</th>
+    </tr>
+    ${tasks.map(t => `
+      <tr>
+        <td>${t.name}</td>
+        <td>${t.status}</td>
+        <td>${t.team}</td>
+      </tr>
+    `).join("")}
+  </table>
+  `;
+}
+
+function setView(v) {
+  view = v;
+  render();
+}
+
+render();
 </script>
+
 </body>
 </html>
