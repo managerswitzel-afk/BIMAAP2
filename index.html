@@ -22,11 +22,6 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .kpi{background:#fff;padding:15px;border-radius:6px}
 .kpi strong{font-size:24px}
 
-.board{display:flex;gap:12px}
-.column{background:#e5e7eb;width:260px;padding:10px;border-radius:6px}
-.card{background:#fff;padding:10px;margin-bottom:8px;border-left:4px solid #2563eb;border-radius:4px;cursor:pointer}
-.card small{display:block;color:#555}
-
 table{width:100%;background:#fff;border-collapse:collapse}
 th,td{padding:10px;border:1px solid #ddd;text-align:left}
 
@@ -57,10 +52,9 @@ th,td{padding:10px;border:1px solid #ddd;text-align:left}
 </div>
 
 <script>
-let view="dashboard";
-let clientMode = JSON.parse(localStorage.getItem("clientMode")||"false");
-let editIndex=null;
+let clientMode=JSON.parse(localStorage.getItem("clientMode")||"false");
 let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+let editIndex=null;
 const app=document.getElementById("app");
 
 function render(){
@@ -69,22 +63,13 @@ app.innerHTML=`
 <div class="sidebar">
 <h1>SWITZELINT</h1>
 <h2>BIM LOD Planner</h2>
-<button onclick="toggleClient()">
-${clientMode?"Switch to Admin":"Switch to Client"}
-</button>
+<button onclick="toggleClient()">${clientMode?"Switch to Admin":"Switch to Client"}</button>
 ${clientMode?"":"<button onclick='openNew()'>+ New Task</button>"}
+<button onclick="exportCSV()">Export Report</button>
 </div>
 
 <div class="main">
-<div class="topbar">
-<div>
-<button onclick="setView('dashboard')">Dashboard</button>
-${clientMode?"":`
-<button onclick="setView('kanban')">Kanban</button>
-<button onclick="setView('list')">List</button>`}
-</div>
-<strong>${clientMode?"Client Dashboard":"LOD Management"}</strong>
-</div>
+<div class="topbar"><strong>${clientMode?"Client Dashboard":"LOD Management Dashboard"}</strong></div>
 ${dashboard()}
 </div>
 </div>`;
@@ -100,10 +85,22 @@ return `<div class="kpis">
 <div class="kpi"><h4>Total Tasks</h4><strong>${total}</strong></div>
 <div class="kpi"><h4>Approved</h4><strong>${approved}</strong></div>
 <div class="kpi"><h4>Overall LOD %</h4><strong>${percent}%</strong></div>
-<div class="kpi"><h4>ARC Tasks</h4><strong>${tasks.filter(t=>t.discipline==="ARC").length}</strong></div>
-<div class="kpi"><h4>STR Tasks</h4><strong>${tasks.filter(t=>t.discipline==="STR").length}</strong></div>
-<div class="kpi"><h4>MEP Tasks</h4><strong>${tasks.filter(t=>t.discipline==="MEP").length}</strong></div>
+<div class="kpi"><h4>ARC</h4><strong>${tasks.filter(t=>t.discipline==="ARC").length}</strong></div>
+<div class="kpi"><h4>STR</h4><strong>${tasks.filter(t=>t.discipline==="STR").length}</strong></div>
+<div class="kpi"><h4>MEP</h4><strong>${tasks.filter(t=>t.discipline==="MEP").length}</strong></div>
 </div>`;
+}
+
+function exportCSV(){
+let csv="Task,Discipline,Status,Team,LOD Current,LOD Target,Due Date\n";
+tasks.forEach(t=>{
+csv+=`${t.name},${t.discipline},${t.status},${t.team},${t.lodCurrent},${t.lodTarget},${t.due}\n`;
+});
+const blob=new Blob([csv],{type:"text/csv"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="SWITZELINT_BIM_LOD_Report.csv";
+a.click();
 }
 
 function toggleClient(){
@@ -119,29 +116,18 @@ document.querySelectorAll("#taskModal input,select").forEach(e=>e.value="");
 }
 
 function saveTask(){
-const t={
-name:name.value,discipline:discipline.value,
-lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,
-status:status.value,team:team.value,due:due.value
-};
+const t={name:name.value,discipline:discipline.value,lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,status:status.value,team:team.value,due:due.value};
 editIndex===null?tasks.push(t):tasks[editIndex]=t;
 localStorage.setItem("tasks",JSON.stringify(tasks));
 closeModal();render();
 }
 
 function deleteTask(){
-if(editIndex!==null){
-tasks.splice(editIndex,1);
-localStorage.setItem("tasks",JSON.stringify(tasks));
-}
+if(editIndex!==null){tasks.splice(editIndex,1);localStorage.setItem("tasks",JSON.stringify(tasks))}
 closeModal();render();
 }
 
-function closeModal(){
-document.getElementById("taskModal").style.display="none";
-}
-
-function setView(v){view=v;render()}
+function closeModal(){document.getElementById("taskModal").style.display="none"}
 
 render();
 </script>
