@@ -18,6 +18,10 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .topbar{display:flex;justify-content:space-between;margin-bottom:15px}
 .topbar button{padding:8px 14px;border:none;border-radius:4px;background:#2563eb;color:#fff;cursor:pointer}
 
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.kpi{background:#fff;padding:15px;border-radius:6px}
+.kpi strong{font-size:24px}
+
 .board{display:flex;gap:12px}
 .column{background:#e5e7eb;width:260px;padding:10px;border-radius:6px}
 .card{background:#fff;padding:10px;margin-bottom:8px;border-left:4px solid #2563eb;border-radius:4px;cursor:pointer}
@@ -25,10 +29,6 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 
 table{width:100%;background:#fff;border-collapse:collapse}
 th,td{padding:10px;border:1px solid #ddd;text-align:left}
-
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
-.kpi{background:#fff;padding:15px;border-radius:6px}
-.kpi strong{font-size:24px}
 
 .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center}
 .modal-content{background:#fff;padding:20px;width:320px;border-radius:6px}
@@ -57,7 +57,9 @@ th,td{padding:10px;border:1px solid #ddd;text-align:left}
 </div>
 
 <script>
-let view="dashboard", editIndex=null;
+let view="dashboard";
+let clientMode = JSON.parse(localStorage.getItem("clientMode")||"false");
+let editIndex=null;
 let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
 const app=document.getElementById("app");
 
@@ -67,19 +69,23 @@ app.innerHTML=`
 <div class="sidebar">
 <h1>SWITZELINT</h1>
 <h2>BIM LOD Planner</h2>
-<button onclick="openNew()">+ New Task</button>
+<button onclick="toggleClient()">
+${clientMode?"Switch to Admin":"Switch to Client"}
+</button>
+${clientMode?"":"<button onclick='openNew()'>+ New Task</button>"}
 </div>
 
 <div class="main">
 <div class="topbar">
 <div>
 <button onclick="setView('dashboard')">Dashboard</button>
+${clientMode?"":`
 <button onclick="setView('kanban')">Kanban</button>
-<button onclick="setView('list')">List</button>
+<button onclick="setView('list')">List</button>`}
 </div>
-<strong>LOD Management</strong>
+<strong>${clientMode?"Client Dashboard":"LOD Management"}</strong>
 </div>
-${view==="dashboard"?dashboard():view==="kanban"?kanban():list()}
+${dashboard()}
 </div>
 </div>`;
 }
@@ -87,51 +93,55 @@ ${view==="dashboard"?dashboard():view==="kanban"?kanban():list()}
 function dashboard(){
 const total=tasks.length;
 const approved=tasks.filter(t=>t.status==="Approved").length;
-const lodProgress=tasks.reduce((a,t)=>a+(+t.lodCurrent||0)/(+t.lodTarget||1),0);
-const percent=total?Math.round((lodProgress/total)*100):0;
-
-function disc(d){return tasks.filter(t=>t.discipline===d).length}
+const progress=tasks.reduce((a,t)=>a+(+t.lodCurrent||0)/(+t.lodTarget||1),0);
+const percent=total?Math.round((progress/total)*100):0;
 
 return `<div class="kpis">
 <div class="kpi"><h4>Total Tasks</h4><strong>${total}</strong></div>
 <div class="kpi"><h4>Approved</h4><strong>${approved}</strong></div>
 <div class="kpi"><h4>Overall LOD %</h4><strong>${percent}%</strong></div>
-<div class="kpi"><h4>ARC Tasks</h4><strong>${disc("ARC")}</strong></div>
-<div class="kpi"><h4>STR Tasks</h4><strong>${disc("STR")}</strong></div>
-<div class="kpi"><h4>MEP Tasks</h4><strong>${disc("MEP")}</strong></div>
+<div class="kpi"><h4>ARC Tasks</h4><strong>${tasks.filter(t=>t.discipline==="ARC").length}</strong></div>
+<div class="kpi"><h4>STR Tasks</h4><strong>${tasks.filter(t=>t.discipline==="STR").length}</strong></div>
+<div class="kpi"><h4>MEP Tasks</h4><strong>${tasks.filter(t=>t.discipline==="MEP").length}</strong></div>
 </div>`;
 }
 
-function kanban(){
-const cols=["Backlog","In Progress","Review","Approved"];
-return `<div class="board">`+cols.map(c=>`
-<div class="column"><h3>${c}</h3>
-${tasks.filter(t=>t.status===c).map((t,i)=>`
-<div class="card" onclick="edit(${i})">
-${t.name}
-<small>${t.discipline} | ${t.team}</small>
-<small>LOD ${t.lodCurrent}/${t.lodTarget}</small>
-</div>`).join("")}
-</div>`).join("")+`</div>`;
+function toggleClient(){
+clientMode=!clientMode;
+localStorage.setItem("clientMode",JSON.stringify(clientMode));
+render();
 }
 
-function list(){
-return `<table>
-<tr><th>Task</th><th>Discipline</th><th>Status</th><th>Team</th><th>LOD</th></tr>
-${tasks.map((t,i)=>`
-<tr onclick="edit(${i})">
-<td>${t.name}</td><td>${t.discipline}</td><td>${t.status}</td>
-<td>${t.team}</td><td>${t.lodCurrent}/${t.lodTarget}</td>
-</tr>`).join("")}
-</table>`;
+function openNew(){
+editIndex=null;
+document.getElementById("taskModal").style.display="flex";
+document.querySelectorAll("#taskModal input,select").forEach(e=>e.value="");
+}
+
+function saveTask(){
+const t={
+name:name.value,discipline:discipline.value,
+lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,
+status:status.value,team:team.value,due:due.value
+};
+editIndex===null?tasks.push(t):tasks[editIndex]=t;
+localStorage.setItem("tasks",JSON.stringify(tasks));
+closeModal();render();
+}
+
+function deleteTask(){
+if(editIndex!==null){
+tasks.splice(editIndex,1);
+localStorage.setItem("tasks",JSON.stringify(tasks));
+}
+closeModal();render();
+}
+
+function closeModal(){
+document.getElementById("taskModal").style.display="none";
 }
 
 function setView(v){view=v;render()}
-function openNew(){editIndex=null;document.getElementById("taskModal").style.display="flex";document.querySelectorAll("#taskModal input,select").forEach(e=>e.value="")}
-function edit(i){editIndex=i;const t=tasks[i];["name","discipline","lodCurrent","lodTarget","status","team","due"].forEach(id=>document.getElementById(id).value=t[id]||"");document.getElementById("taskModal").style.display="flex"}
-function saveTask(){const t={name:name.value,discipline:discipline.value,lodCurrent:lodCurrent.value,lodTarget:lodTarget.value,status:status.value,team:team.value,due:due.value};editIndex===null?tasks.push(t):tasks[editIndex]=t;localStorage.setItem("tasks",JSON.stringify(tasks));closeModal();render()}
-function deleteTask(){if(editIndex!==null){tasks.splice(editIndex,1);localStorage.setItem("tasks",JSON.stringify(tasks))}closeModal();render()}
-function closeModal(){document.getElementById("taskModal").style.display="none"}
 
 render();
 </script>
