@@ -10,20 +10,20 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .app{display:flex;height:100vh}
 
 /* Sidebar */
-.sidebar{width:280px;background:#1f2933;color:#fff;padding:20px}
+.sidebar{width:300px;background:#1f2933;color:#fff;padding:20px}
 .sidebar h1{font-size:18px;margin:0}
-.sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 12px}
+.sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 10px}
 .sidebar button{
 width:100%;padding:10px;margin:6px 0;border:none;
 background:#374151;color:#fff;border-radius:4px;cursor:pointer}
-.sidebar .project{
+.item{
 padding:8px;background:#111827;margin-bottom:6px;
 border-radius:4px;cursor:pointer;font-size:14px}
 
 /* Main */
 .main{flex:1;padding:20px;overflow:auto}
-.header{display:flex;justify-content:space-between;margin-bottom:20px}
-.header input{font-size:18px;padding:6px;width:60%}
+.header{display:flex;gap:10px;margin-bottom:20px}
+.header input{font-size:18px;padding:6px;flex:1}
 
 /* KPIs */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
@@ -34,7 +34,8 @@ border-radius:4px;cursor:pointer;font-size:14px}
 .table{background:#fff;border-radius:6px;padding:14px}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:14px}
-input.small{width:100%;padding:6px}
+input.small, select.small{width:100%;padding:6px}
+.section{margin-top:20px}
 </style>
 </head>
 
@@ -48,6 +49,11 @@ input.small{width:100%;padding:6px}
 
   <button onclick="addProject()">+ Add Project</button>
   <div id="projectList"></div>
+
+  <hr style="border-color:#374151">
+
+  <button onclick="addTeam()">+ Add Team</button>
+  <div id="teamList"></div>
 </div>
 
 <!-- MAIN -->
@@ -68,7 +74,10 @@ input.small{width:100%;padding:6px}
     <table>
       <thead>
         <tr>
-          <th>ID</th><th>Team</th><th>Status</th><th>LOD</th>
+          <th>ID</th>
+          <th>Team</th>
+          <th>Status</th>
+          <th>LOD</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
@@ -83,37 +92,37 @@ let data = JSON.parse(localStorage.getItem("bimData"));
 if(!data){
   data = {
     active: 0,
-    projects: [
-      { name:"Hospital Project", containers:[] }
-    ]
+    teams: ["ARC","STR","MEP"],
+    projects: [{ name:"Hospital Project", containers:[] }]
   };
   save();
 }
-
-function save(){
-  localStorage.setItem("bimData", JSON.stringify(data));
-}
+function save(){ localStorage.setItem("bimData", JSON.stringify(data)); }
 
 /* ===== PROJECTS ===== */
 function addProject(){
   data.projects.push({ name:"New Project", containers:[] });
-  data.active = data.projects.length-1;
+  data.active=data.projects.length-1;
   render();
 }
+function selectProject(i){ data.active=i; render(); }
 
-function selectProject(i){
-  data.active = i;
-  render();
+/* ===== TEAMS ===== */
+function addTeam(){
+  const t=prompt("Team name");
+  if(t){ data.teams.push(t); render(); }
 }
 
 /* ===== CONTAINERS ===== */
 function addContainer(){
   data.projects[data.active].containers.push({
-    id:"NEW-CONTAINER", team:"ARC", status:"WIP", lod:"0/300"
+    id:"NEW-CONTAINER",
+    team:data.teams[0] || "",
+    status:"WIP",
+    lod:"0/300"
   });
   render();
 }
-
 function update(i,k,v){
   data.projects[data.active].containers[i][k]=v;
   render();
@@ -121,46 +130,55 @@ function update(i,k,v){
 
 /* ===== RENDER ===== */
 function render(){
-  const p = data.projects[data.active];
-  document.getElementById("projectName").value = p.name;
+  const p=data.projects[data.active];
 
-  /* sidebar */
-  const pl = document.getElementById("projectList");
-  pl.innerHTML="";
+  /* project name */
+  projectName.value=p.name;
+
+  /* sidebar projects */
+  projectList.innerHTML="";
   data.projects.forEach((pr,i)=>{
     const d=document.createElement("div");
-    d.className="project";
+    d.className="item";
     d.innerText=pr.name;
     d.onclick=()=>selectProject(i);
-    pl.appendChild(d);
+    projectList.appendChild(d);
+  });
+
+  /* teams */
+  teamList.innerHTML="";
+  data.teams.forEach(t=>{
+    const d=document.createElement("div");
+    d.className="item";
+    d.innerText=t;
+    teamList.appendChild(d);
   });
 
   /* table */
-  const tb=document.getElementById("tableBody");
-  tb.innerHTML="";
+  tableBody.innerHTML="";
   p.containers.forEach((c,i)=>{
-    tb.innerHTML+=`
+    tableBody.innerHTML+=`
       <tr>
         <td><input class="small" value="${c.id}" onchange="update(${i},'id',this.value)"></td>
-        <td><input class="small" value="${c.team}" onchange="update(${i},'team',this.value)"></td>
+        <td>
+          <select class="small" onchange="update(${i},'team',this.value)">
+            ${data.teams.map(t=>`<option ${t===c.team?"selected":""}>${t}</option>`).join("")}
+          </select>
+        </td>
         <td><input class="small" value="${c.status}" onchange="update(${i},'status',this.value)"></td>
         <td><input class="small" value="${c.lod}" onchange="update(${i},'lod',this.value)"></td>
       </tr>`;
   });
 
-  document.getElementById("kpiTotal").innerText=p.containers.length;
-  document.getElementById("kpiPublished").innerText=p.containers.filter(c=>c.status==="Published").length;
-  document.getElementById("kpiWip").innerText=p.containers.filter(c=>c.status==="WIP").length;
-  document.getElementById("kpiShared").innerText=p.containers.filter(c=>c.status==="Shared").length;
+  /* KPIs */
+  kpiTotal.innerText=p.containers.length;
+  kpiPublished.innerText=p.containers.filter(c=>c.status==="Published").length;
+  kpiWip.innerText=p.containers.filter(c=>c.status==="WIP").length;
+  kpiShared.innerText=p.containers.filter(c=>c.status==="Shared").length;
 
   save();
 }
-
-document.getElementById("projectName").onchange=e=>{
-  data.projects[data.active].name=e.target.value;
-  render();
-};
-
+projectName.onchange=e=>{ data.projects[data.active].name=e.target.value; render(); }
 render();
 </script>
 </body>
