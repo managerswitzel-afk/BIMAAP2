@@ -4,153 +4,164 @@
 <meta charset="UTF-8">
 <title>SWITZELINT – BIM Project Control</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .app{display:flex;height:100vh}
 
 /* Sidebar */
-.sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
+.sidebar{width:280px;background:#1f2933;color:#fff;padding:20px}
 .sidebar h1{font-size:18px;margin:0}
-.sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 20px}
+.sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 12px}
 .sidebar button{
-width:100%;padding:10px;margin-bottom:8px;border:none;
+width:100%;padding:10px;margin:6px 0;border:none;
 background:#374151;color:#fff;border-radius:4px;cursor:pointer}
+.sidebar .project{
+padding:8px;background:#111827;margin-bottom:6px;
+border-radius:4px;cursor:pointer;font-size:14px}
 
 /* Main */
 .main{flex:1;padding:20px;overflow:auto}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
-.header input{font-size:18px;padding:6px}
+.header{display:flex;justify-content:space-between;margin-bottom:20px}
+.header input{font-size:18px;padding:6px;width:60%}
 
 /* KPIs */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:30px}
-.kpi{background:#fff;padding:16px;border-radius:6px}
-.kpi strong{font-size:26px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+.kpi{background:#fff;padding:14px;border-radius:6px}
+.kpi strong{font-size:24px}
 
 /* Table */
-.table{background:#fff;border-radius:6px;padding:16px}
+.table{background:#fff;border-radius:6px;padding:14px}
 table{width:100%;border-collapse:collapse}
-th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px}
+th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:14px}
 input.small{width:100%;padding:6px}
 </style>
 </head>
 
 <body>
-
 <div class="app">
-  <div class="sidebar">
-    <h1>SWITZELINT</h1>
-    <h2>BIM Project Control</h2>
 
-    <button onclick="addContainer()">+ Add ISO Container</button>
-    <button onclick="resetData()">Reset Project</button>
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <h1>SWITZELINT</h1>
+  <h2>BIM Project Control</h2>
+
+  <button onclick="addProject()">+ Add Project</button>
+  <div id="projectList"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="header">
+    <input id="projectName" placeholder="Project name">
+    <button onclick="addContainer()">+ Add ISO</button>
   </div>
 
-  <div class="main">
-    <div class="header">
-      <input id="projectName" placeholder="Project name">
-    </div>
-
-    <div class="kpis">
-      <div class="kpi">Total Containers<br><strong id="kpiTotal">0</strong></div>
-      <div class="kpi">Published<br><strong id="kpiPublished">0</strong></div>
-      <div class="kpi">WIP<br><strong id="kpiWip">0</strong></div>
-      <div class="kpi">Shared<br><strong id="kpiShared">0</strong></div>
-    </div>
-
-    <div class="table">
-      <table>
-        <thead>
-          <tr>
-            <th>Container ID</th>
-            <th>Team</th>
-            <th>Status</th>
-            <th>LOD</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-    </div>
+  <div class="kpis">
+    <div class="kpi">Containers<br><strong id="kpiTotal">0</strong></div>
+    <div class="kpi">Published<br><strong id="kpiPublished">0</strong></div>
+    <div class="kpi">WIP<br><strong id="kpiWip">0</strong></div>
+    <div class="kpi">Shared<br><strong id="kpiShared">0</strong></div>
   </div>
+
+  <div class="table">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Team</th><th>Status</th><th>LOD</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
 </div>
 
 <script>
-/* ===== DATA ===== */
-let project = JSON.parse(localStorage.getItem("project"));
-
-if(!project){
-  project = {
-    name: "Hospital Project",
-    containers: []
+/* ===== STORAGE ===== */
+let data = JSON.parse(localStorage.getItem("bimData"));
+if(!data){
+  data = {
+    active: 0,
+    projects: [
+      { name:"Hospital Project", containers:[] }
+    ]
   };
   save();
 }
 
-/* ===== SAVE ===== */
 function save(){
-  localStorage.setItem("project", JSON.stringify(project));
+  localStorage.setItem("bimData", JSON.stringify(data));
+}
+
+/* ===== PROJECTS ===== */
+function addProject(){
+  data.projects.push({ name:"New Project", containers:[] });
+  data.active = data.projects.length-1;
+  render();
+}
+
+function selectProject(i){
+  data.active = i;
+  render();
+}
+
+/* ===== CONTAINERS ===== */
+function addContainer(){
+  data.projects[data.active].containers.push({
+    id:"NEW-CONTAINER", team:"ARC", status:"WIP", lod:"0/300"
+  });
+  render();
+}
+
+function update(i,k,v){
+  data.projects[data.active].containers[i][k]=v;
+  render();
 }
 
 /* ===== RENDER ===== */
 function render(){
-  document.getElementById("projectName").value = project.name;
+  const p = data.projects[data.active];
+  document.getElementById("projectName").value = p.name;
 
-  const tbody = document.getElementById("tableBody");
-  tbody.innerHTML = "";
-
-  project.containers.forEach((c,i)=>{
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td><input class="small" value="${c.id}" onchange="update(${i},'id',this.value)"></td>
-      <td><input class="small" value="${c.team}" onchange="update(${i},'team',this.value)"></td>
-      <td><input class="small" value="${c.status}" onchange="update(${i},'status',this.value)"></td>
-      <td><input class="small" value="${c.lod}" onchange="update(${i},'lod',this.value)"></td>
-    `;
-    tbody.appendChild(row);
+  /* sidebar */
+  const pl = document.getElementById("projectList");
+  pl.innerHTML="";
+  data.projects.forEach((pr,i)=>{
+    const d=document.createElement("div");
+    d.className="project";
+    d.innerText=pr.name;
+    d.onclick=()=>selectProject(i);
+    pl.appendChild(d);
   });
 
-  document.getElementById("kpiTotal").innerText = project.containers.length;
-  document.getElementById("kpiPublished").innerText =
-    project.containers.filter(c=>c.status==="Published").length;
-  document.getElementById("kpiWip").innerText =
-    project.containers.filter(c=>c.status==="WIP").length;
-  document.getElementById("kpiShared").innerText =
-    project.containers.filter(c=>c.status==="Shared").length;
+  /* table */
+  const tb=document.getElementById("tableBody");
+  tb.innerHTML="";
+  p.containers.forEach((c,i)=>{
+    tb.innerHTML+=`
+      <tr>
+        <td><input class="small" value="${c.id}" onchange="update(${i},'id',this.value)"></td>
+        <td><input class="small" value="${c.team}" onchange="update(${i},'team',this.value)"></td>
+        <td><input class="small" value="${c.status}" onchange="update(${i},'status',this.value)"></td>
+        <td><input class="small" value="${c.lod}" onchange="update(${i},'lod',this.value)"></td>
+      </tr>`;
+  });
+
+  document.getElementById("kpiTotal").innerText=p.containers.length;
+  document.getElementById("kpiPublished").innerText=p.containers.filter(c=>c.status==="Published").length;
+  document.getElementById("kpiWip").innerText=p.containers.filter(c=>c.status==="WIP").length;
+  document.getElementById("kpiShared").innerText=p.containers.filter(c=>c.status==="Shared").length;
 
   save();
 }
 
-/* ===== ACTIONS ===== */
-function addContainer(){
-  project.containers.push({
-    id: "NEW-CONTAINER",
-    team: "ARC Team",
-    status: "WIP",
-    lod: "0/300"
-  });
+document.getElementById("projectName").onchange=e=>{
+  data.projects[data.active].name=e.target.value;
   render();
-}
-
-function update(index,key,value){
-  project.containers[index][key] = value;
-  render();
-}
-
-function resetData(){
-  if(confirm("Reset project data?")){
-    localStorage.removeItem("project");
-    location.reload();
-  }
-}
-
-document.getElementById("projectName").addEventListener("change", e=>{
-  project.name = e.target.value;
-  save();
-});
+};
 
 render();
 </script>
-
 </body>
 </html>
