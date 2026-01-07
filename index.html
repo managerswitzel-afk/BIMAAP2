@@ -37,10 +37,6 @@ body {
   margin: 6px 0 20px;
 }
 
-.sidebar .menu {
-  margin-top: 20px;
-}
-
 .sidebar .menu div {
   padding: 10px;
   margin-bottom: 8px;
@@ -86,16 +82,23 @@ body {
   font-size: 26px;
 }
 
-/* Table placeholder */
+/* Table */
 .table {
   background: #ffffff;
   border-radius: 6px;
   padding: 16px;
 }
 
-.table p {
-  margin: 0;
-  color: #6b7280;
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  font-size: 14px;
 }
 </style>
 </head>
@@ -103,7 +106,6 @@ body {
 <body>
 
 <div class="app">
-  <!-- Sidebar -->
   <div class="sidebar">
     <h1>SWITZELINT</h1>
     <h2>BIM Project Control</h2>
@@ -118,34 +120,79 @@ body {
     </div>
   </div>
 
-  <!-- Main Content -->
   <div class="main">
-    <div class="header">Project Dashboard</div>
+    <div class="header" id="projectTitle">Project Dashboard</div>
 
     <div class="kpis">
       <div class="kpi">
         <h4>Total Projects</h4>
-        <strong>—</strong>
+        <strong id="kpiProjects">0</strong>
       </div>
       <div class="kpi">
         <h4>Active Teams</h4>
-        <strong>—</strong>
+        <strong id="kpiTeams">0</strong>
       </div>
       <div class="kpi">
         <h4>ISO Containers</h4>
-        <strong>—</strong>
+        <strong id="kpiContainers">0</strong>
       </div>
       <div class="kpi">
         <h4>Published</h4>
-        <strong>—</strong>
+        <strong id="kpiPublished">0</strong>
       </div>
     </div>
 
     <div class="table">
-      <p>Task / ISO container list will appear here.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Container ID</th>
+            <th>Team</th>
+            <th>Status</th>
+            <th>LOD</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
+
+<script>
+/* ===== SIMPLE SAFE DATA ===== */
+const project = {
+  name: "Hospital Project",
+  teams: ["ARC Team", "MEP Team", "STR Team"],
+  containers: [
+    { id: "ARC-MOD-A-300", team: "ARC Team", status: "Published", lod: "300/300" },
+    { id: "MEP-MOD-A-200", team: "MEP Team", status: "WIP", lod: "200/300" },
+    { id: "STR-MOD-A-300", team: "STR Team", status: "Shared", lod: "300/300" }
+  ]
+};
+
+/* ===== RENDER ===== */
+document.getElementById("projectTitle").innerText =
+  project.name + " – Dashboard";
+
+document.getElementById("kpiProjects").innerText = 1;
+document.getElementById("kpiTeams").innerText = project.teams.length;
+document.getElementById("kpiContainers").innerText = project.containers.length;
+document.getElementById("kpiPublished").innerText =
+  project.containers.filter(c => c.status === "Published").length;
+
+const tbody = document.getElementById("tableBody");
+project.containers.forEach(c => {
+  const row = document.createElement("tr");
+  row.innerHTML = `
+    <td>${c.id}</td>
+    <td>${c.team}</td>
+    <td>${c.status}</td>
+    <td>${c.lod}</td>
+  `;
+  tbody.appendChild(row);
+});
+</script>
 
 </body>
 </html>
