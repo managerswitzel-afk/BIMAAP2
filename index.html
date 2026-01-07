@@ -2,38 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT – BIM ISO Control</title>
+<title>SWITZELINT – BIM Communication Control</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .app{display:flex;height:100vh}
 .hidden{display:none}
-
-/* Sidebar */
 .sidebar{width:300px;background:#1f2933;color:#fff;padding:20px}
-.sidebar h1{font-size:18px;margin:0}
-.sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 10px}
-.sidebar select,.sidebar button{
-width:100%;padding:10px;margin:6px 0;border:none;
-background:#374151;color:#fff;border-radius:4px}
-
-/* Main */
 .main{flex:1;padding:20px;overflow:auto}
-.header{display:flex;gap:10px;margin-bottom:20px}
-.header input{font-size:18px;padding:6px;flex:1}
-
-/* KPIs */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
-.kpi{background:#fff;padding:14px;border-radius:6px}
-.kpi strong{font-size:24px}
-
-/* Table */
-.table{background:#fff;border-radius:6px;padding:14px}
+button,select,input,textarea{padding:6px}
 table{width:100%;border-collapse:collapse}
-th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:14px}
-input.small,select.small{width:100%;padding:6px}
-.warn{color:#dc2626;font-size:12px}
+th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:13px}
+.log{background:#f9fafb;border:1px solid #e5e7eb;padding:8px;margin:6px 0}
+.small{font-size:12px;color:#6b7280}
 </style>
 </head>
 
@@ -41,144 +23,93 @@ input.small,select.small{width:100%;padding:6px}
 <div class="app">
 
 <div class="sidebar">
-  <h1>SWITZELINT</h1>
-  <h2>BIM ISO Control</h2>
-
+  <h2>SWITZELINT</h2>
   <select id="roleSelect" onchange="setRole()">
     <option>BIM Manager</option>
     <option>Team Member</option>
     <option>Client</option>
   </select>
-
   <div id="projectList"></div>
 </div>
 
 <div class="main">
-  <div class="header">
-    <input id="projectName">
-    <button id="addIsoBtn" onclick="addContainer()">+ Add ISO</button>
-  </div>
+  <h2 id="projectName"></h2>
+  <button onclick="addISO()">+ Add ISO Container</button>
 
-  <div class="kpis">
-    <div class="kpi">Total<br><strong id="kpiTotal">0</strong></div>
-    <div class="kpi">Published<br><strong id="kpiPublished">0</strong></div>
-    <div class="kpi">Blocked<br><strong id="kpiBlocked">0</strong></div>
-  </div>
-
-  <div class="table">
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Team</th>
-          <th>Status</th>
-          <th>LOD</th>
-          <th>Rule</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Status</th>
+        <th>LOD</th>
+        <th>Communication</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
 </div>
 </div>
 
 <script>
-let data=JSON.parse(localStorage.getItem("bimISO"));
+let data=JSON.parse(localStorage.getItem("bimComms"));
 if(!data){
   data={
     role:"BIM Manager",
     active:0,
-    teams:["ARC","STR","MEP"],
     projects:[{name:"Hospital Project",containers:[]}]
   };
   save();
 }
-function save(){localStorage.setItem("bimISO",JSON.stringify(data));}
+function save(){localStorage.setItem("bimComms",JSON.stringify(data));}
 
 function setRole(){data.role=roleSelect.value;save();render();}
 
-function addContainer(){
+function addISO(){
   data.projects[data.active].containers.push({
-    id:"NEW-CONTAINER",
-    team:data.teams[0],
+    id:"ISO-"+(Date.now()%1000),
     status:"WIP",
-    current:0,
-    target:300
+    lod:"0/300",
+    logs:[]
   });
   render();
 }
 
-function allowedStatuses(c){
-  if(c.status==="WIP") return ["WIP","Shared"];
-  if(c.status==="Shared") return ["Shared","Published"];
-  return ["Published"];
-}
-
-function statusBlocked(c,next){
-  if(next==="Shared" && c.current<c.target) return "LOD not met";
-  if(next==="Published" && c.status!=="Shared") return "Must be Shared first";
-  return "";
+function addLog(i){
+  if(data.role==="Client"){alert("Read only");return;}
+  const type=prompt("Type (WhatsApp / Email / Call / Meeting)");
+  const summary=prompt("Summary / Decision");
+  if(!type||!summary)return;
+  data.projects[data.active].containers[i].logs.push({
+    date:new Date().toLocaleString(),
+    type,summary
+  });
+  render();
 }
 
 function render(){
-  const p=data.projects[data.active];
   roleSelect.value=data.role;
-  projectName.value=p.name;
-
-  projectList.innerHTML="";
-  data.projects.forEach((pr,i)=>{
-    const d=document.createElement("div");
-    d.textContent=pr.name;
-    d.onclick=()=>{data.active=i;render();};
-    projectList.appendChild(d);
-  });
+  const p=data.projects[data.active];
+  projectName.innerText=p.name;
 
   tableBody.innerHTML="";
-  let blocked=0;
-
   p.containers.forEach((c,i)=>{
-    let rule="";
-    if(c.status!=="Published" && c.current<c.target) rule="LOD Gate Blocked";
-    if(rule) blocked++;
-
     tableBody.innerHTML+=`
     <tr>
       <td>${c.id}</td>
-      <td>${c.team}</td>
+      <td>${c.status}</td>
+      <td>${c.lod}</td>
       <td>
-        <select class="small" ${data.role==="Client"?"disabled":""}
-        onchange="changeStatus(${i},this.value)">
-        ${allowedStatuses(c).map(s=>`<option ${s===c.status?"selected":""}>${s}</option>`).join("")}
-        </select>
+        <button onclick="addLog(${i})">+ Log</button>
+        ${c.logs.map(l=>`
+          <div class="log">
+            <strong>${l.type}</strong> – ${l.date}<br>
+            <span class="small">${l.summary}</span>
+          </div>`).join("")}
       </td>
-      <td>
-        <input class="small" type="number" value="${c.current}"
-        onchange="updateLOD(${i},this.value)"> / ${c.target}
-      </td>
-      <td class="warn">${rule}</td>
     </tr>`;
   });
-
-  kpiTotal.innerText=p.containers.length;
-  kpiPublished.innerText=p.containers.filter(c=>c.status==="Published").length;
-  kpiBlocked.innerText=blocked;
-
   save();
 }
-
-function updateLOD(i,v){
-  data.projects[data.active].containers[i].current=parseInt(v)||0;
-  render();
-}
-
-function changeStatus(i,next){
-  const c=data.projects[data.active].containers[i];
-  const msg=statusBlocked(c,next);
-  if(msg){alert(msg);return;}
-  c.status=next;
-  render();
-}
-
 render();
 </script>
 </body>
