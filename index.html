@@ -2,137 +2,83 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT – BIM Meetings & Actions</title>
+<title>SWITZELINT – Secure BIM Platform</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-*{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
+.hidden{display:none}
+.center{height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#fff;padding:20px;border-radius:6px;width:320px}
+input,select,button{width:100%;padding:8px;margin:6px 0}
 .app{display:flex;height:100vh}
-.sidebar{width:300px;background:#1f2933;color:#fff;padding:20px}
-.main{flex:1;padding:20px;overflow:auto}
-button,input,select,textarea{padding:6px;margin:4px 0}
-.card{background:#fff;border-radius:6px;padding:12px;margin-bottom:12px}
-.small{font-size:12px;color:#6b7280}
+.sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
+.main{flex:1;padding:20px}
 </style>
 </head>
 
 <body>
-<div class="app">
 
-<div class="sidebar">
-  <h2>SWITZELINT</h2>
-  <select id="roleSelect" onchange="setRole()">
-    <option>BIM Manager</option>
-    <option>Team Member</option>
-    <option>Client</option>
-  </select>
-  <div id="projectList"></div>
+<!-- LOGIN -->
+<div id="login" class="center">
+  <div class="card">
+    <h2>SWITZELINT</h2>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <select id="role">
+      <option>BIM Manager</option>
+      <option>Team Member</option>
+      <option>Client</option>
+    </select>
+    <button onclick="login()">Login</button>
+    <p id="loginMsg" style="color:red;font-size:12px"></p>
+  </div>
 </div>
 
-<div class="main">
-  <h2 id="projectName"></h2>
-
-  <button onclick="addMeeting()">+ Add Meeting</button>
-
-  <div id="meetingList"></div>
-</div>
-
+<!-- APP -->
+<div id="app" class="app hidden">
+  <div class="sidebar">
+    <h3>SWITZELINT</h3>
+    <p id="userInfo"></p>
+    <button onclick="logout()">Logout</button>
+  </div>
+  <div class="main">
+    <h2>Welcome to SWITZELINT</h2>
+    <p>This is your secure BIM Project Management platform.</p>
+    <p><strong>Next:</strong> Projects, Teams, ISO, Meetings will load here.</p>
+  </div>
 </div>
 
 <script>
-let data=JSON.parse(localStorage.getItem("bimMeetings"));
-if(!data){
-  data={
-    role:"BIM Manager",
-    active:0,
-    teams:["ARC","STR","MEP"],
-    projects:[{
-      name:"Hospital Project",
-      meetings:[]
-    }]
-  };
-  save();
-}
-function save(){localStorage.setItem("bimMeetings",JSON.stringify(data));}
-function setRole(){data.role=roleSelect.value;save();render();}
+/* ===== SIMPLE AUTH (LOCAL PLACEHOLDER) ===== */
+let user = JSON.parse(localStorage.getItem("switzUser"));
 
-function addMeeting(){
-  if(data.role==="Client"){alert("Read only");return;}
-  data.projects[data.active].meetings.push({
-    title:"Coordination Meeting",
-    date:new Date().toLocaleDateString(),
-    notes:"",
-    actions:[]
-  });
-  render();
+function login(){
+  const email=document.getElementById("email").value;
+  const role=document.getElementById("role").value;
+
+  if(!email){
+    loginMsg.innerText="Email required";
+    return;
+  }
+
+  user={email,role};
+  localStorage.setItem("switzUser",JSON.stringify(user));
+  loadApp();
 }
 
-function addAction(m){
-  const meeting=data.projects[data.active].meetings[m];
-  meeting.actions.push({
-    text:"New Action Item",
-    team:data.teams[0],
-    due:"",
-    status:"Open"
-  });
-  render();
+function logout(){
+  localStorage.removeItem("switzUser");
+  location.reload();
 }
 
-function updateMeeting(m,k,v){
-  data.projects[data.active].meetings[m][k]=v;
-  render();
+function loadApp(){
+  login.classList.add("hidden");
+  app.classList.remove("hidden");
+  userInfo.innerText = user.email + " (" + user.role + ")";
 }
 
-function updateAction(m,a,k,v){
-  data.projects[data.active].meetings[m].actions[a][k]=v;
-  render();
-}
-
-function render(){
-  roleSelect.value=data.role;
-  const p=data.projects[data.active];
-  projectName.innerText=p.name;
-  projectList.innerHTML="";
-  data.projects.forEach((pr,i)=>{
-    const d=document.createElement("div");
-    d.textContent=pr.name;
-    d.onclick=()=>{data.active=i;render();};
-    projectList.appendChild(d);
-  });
-
-  meetingList.innerHTML="";
-  p.meetings.forEach((m,i)=>{
-    meetingList.innerHTML+=`
-    <div class="card">
-      <input value="${m.title}" ${data.role==="Client"?"disabled":""}
-        onchange="updateMeeting(${i},'title',this.value)">
-      <div class="small">${m.date}</div>
-      <textarea rows="2" placeholder="Notes"
-        ${data.role==="Client"?"disabled":""}
-        onchange="updateMeeting(${i},'notes',this.value)">${m.notes}</textarea>
-
-      <button onclick="addAction(${i})">+ Action Item</button>
-
-      ${m.actions.map((a,j)=>`
-        <div class="card">
-          <input value="${a.text}" ${data.role==="Client"?"disabled":""}
-            onchange="updateAction(${i},${j},'text',this.value)">
-          <select onchange="updateAction(${i},${j},'team',this.value)">
-            ${data.teams.map(t=>`<option ${t===a.team?"selected":""}>${t}</option>`).join("")}
-          </select>
-          <input type="date" onchange="updateAction(${i},${j},'due',this.value)">
-          <select onchange="updateAction(${i},${j},'status',this.value)">
-            <option ${a.status==="Open"?"selected":""}>Open</option>
-            <option ${a.status==="Closed"?"selected":""}>Closed</option>
-          </select>
-        </div>
-      `).join("")}
-    </div>`;
-  });
-
-  save();
-}
-render();
+if(user){ loadApp(); }
 </script>
+
 </body>
 </html>
