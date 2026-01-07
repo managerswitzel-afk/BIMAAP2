@@ -6,100 +6,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #f3f4f6;
-}
-
-.app {
-  display: flex;
-  height: 100vh;
-}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#f3f4f6}
+.app{display:flex;height:100vh}
 
 /* Sidebar */
-.sidebar {
-  width: 260px;
-  background: #1f2933;
-  color: #ffffff;
-  padding: 20px;
-}
-
-.sidebar h1 {
-  font-size: 18px;
-  margin: 0;
-}
-
-.sidebar h2 {
-  font-size: 13px;
-  color: #cbd5e1;
-  margin: 6px 0 20px;
-}
-
-.sidebar .menu div {
-  padding: 10px;
-  margin-bottom: 8px;
-  background: #374151;
-  border-radius: 4px;
-  font-size: 14px;
-}
+.sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
+.sidebar h1{font-size:18px;margin:0}
+.sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 20px}
+.sidebar button{
+width:100%;padding:10px;margin-bottom:8px;border:none;
+background:#374151;color:#fff;border-radius:4px;cursor:pointer}
 
 /* Main */
-.main {
-  flex: 1;
-  padding: 20px;
-  overflow: auto;
-}
+.main{flex:1;padding:20px;overflow:auto}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.header input{font-size:18px;padding:6px}
 
-.header {
-  font-size: 20px;
-  font-weight: bold;
-  margin-bottom: 20px;
-}
-
-/* KPI cards */
-.kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-  margin-bottom: 30px;
-}
-
-.kpi {
-  background: #ffffff;
-  padding: 16px;
-  border-radius: 6px;
-}
-
-.kpi h4 {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: #374151;
-}
-
-.kpi strong {
-  font-size: 26px;
-}
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:30px}
+.kpi{background:#fff;padding:16px;border-radius:6px}
+.kpi strong{font-size:26px}
 
 /* Table */
-.table {
-  background: #ffffff;
-  border-radius: 6px;
-  padding: 16px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th, td {
-  padding: 10px;
-  border-bottom: 1px solid #e5e7eb;
-  text-align: left;
-  font-size: 14px;
-}
+.table{background:#fff;border-radius:6px;padding:16px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px}
+input.small{width:100%;padding:6px}
 </style>
 </head>
 
@@ -110,36 +43,20 @@ th, td {
     <h1>SWITZELINT</h1>
     <h2>BIM Project Control</h2>
 
-    <div class="menu">
-      <div>Dashboard</div>
-      <div>Projects</div>
-      <div>Teams</div>
-      <div>ISO Containers</div>
-      <div>Meetings</div>
-      <div>Reports</div>
-    </div>
+    <button onclick="addContainer()">+ Add ISO Container</button>
+    <button onclick="resetData()">Reset Project</button>
   </div>
 
   <div class="main">
-    <div class="header" id="projectTitle">Project Dashboard</div>
+    <div class="header">
+      <input id="projectName" placeholder="Project name">
+    </div>
 
     <div class="kpis">
-      <div class="kpi">
-        <h4>Total Projects</h4>
-        <strong id="kpiProjects">0</strong>
-      </div>
-      <div class="kpi">
-        <h4>Active Teams</h4>
-        <strong id="kpiTeams">0</strong>
-      </div>
-      <div class="kpi">
-        <h4>ISO Containers</h4>
-        <strong id="kpiContainers">0</strong>
-      </div>
-      <div class="kpi">
-        <h4>Published</h4>
-        <strong id="kpiPublished">0</strong>
-      </div>
+      <div class="kpi">Total Containers<br><strong id="kpiTotal">0</strong></div>
+      <div class="kpi">Published<br><strong id="kpiPublished">0</strong></div>
+      <div class="kpi">WIP<br><strong id="kpiWip">0</strong></div>
+      <div class="kpi">Shared<br><strong id="kpiShared">0</strong></div>
     </div>
 
     <div class="table">
@@ -152,46 +69,87 @@ th, td {
             <th>LOD</th>
           </tr>
         </thead>
-        <tbody id="tableBody">
-        </tbody>
+        <tbody id="tableBody"></tbody>
       </table>
     </div>
   </div>
 </div>
 
 <script>
-/* ===== SIMPLE SAFE DATA ===== */
-const project = {
-  name: "Hospital Project",
-  teams: ["ARC Team", "MEP Team", "STR Team"],
-  containers: [
-    { id: "ARC-MOD-A-300", team: "ARC Team", status: "Published", lod: "300/300" },
-    { id: "MEP-MOD-A-200", team: "MEP Team", status: "WIP", lod: "200/300" },
-    { id: "STR-MOD-A-300", team: "STR Team", status: "Shared", lod: "300/300" }
-  ]
-};
+/* ===== DATA ===== */
+let project = JSON.parse(localStorage.getItem("project"));
+
+if(!project){
+  project = {
+    name: "Hospital Project",
+    containers: []
+  };
+  save();
+}
+
+/* ===== SAVE ===== */
+function save(){
+  localStorage.setItem("project", JSON.stringify(project));
+}
 
 /* ===== RENDER ===== */
-document.getElementById("projectTitle").innerText =
-  project.name + " – Dashboard";
+function render(){
+  document.getElementById("projectName").value = project.name;
 
-document.getElementById("kpiProjects").innerText = 1;
-document.getElementById("kpiTeams").innerText = project.teams.length;
-document.getElementById("kpiContainers").innerText = project.containers.length;
-document.getElementById("kpiPublished").innerText =
-  project.containers.filter(c => c.status === "Published").length;
+  const tbody = document.getElementById("tableBody");
+  tbody.innerHTML = "";
 
-const tbody = document.getElementById("tableBody");
-project.containers.forEach(c => {
-  const row = document.createElement("tr");
-  row.innerHTML = `
-    <td>${c.id}</td>
-    <td>${c.team}</td>
-    <td>${c.status}</td>
-    <td>${c.lod}</td>
-  `;
-  tbody.appendChild(row);
+  project.containers.forEach((c,i)=>{
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td><input class="small" value="${c.id}" onchange="update(${i},'id',this.value)"></td>
+      <td><input class="small" value="${c.team}" onchange="update(${i},'team',this.value)"></td>
+      <td><input class="small" value="${c.status}" onchange="update(${i},'status',this.value)"></td>
+      <td><input class="small" value="${c.lod}" onchange="update(${i},'lod',this.value)"></td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  document.getElementById("kpiTotal").innerText = project.containers.length;
+  document.getElementById("kpiPublished").innerText =
+    project.containers.filter(c=>c.status==="Published").length;
+  document.getElementById("kpiWip").innerText =
+    project.containers.filter(c=>c.status==="WIP").length;
+  document.getElementById("kpiShared").innerText =
+    project.containers.filter(c=>c.status==="Shared").length;
+
+  save();
+}
+
+/* ===== ACTIONS ===== */
+function addContainer(){
+  project.containers.push({
+    id: "NEW-CONTAINER",
+    team: "ARC Team",
+    status: "WIP",
+    lod: "0/300"
+  });
+  render();
+}
+
+function update(index,key,value){
+  project.containers[index][key] = value;
+  render();
+}
+
+function resetData(){
+  if(confirm("Reset project data?")){
+    localStorage.removeItem("project");
+    location.reload();
+  }
+}
+
+document.getElementById("projectName").addEventListener("change", e=>{
+  project.name = e.target.value;
+  save();
 });
+
+render();
 </script>
 
 </body>
