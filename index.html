@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT – BIM Project Control</title>
+<title>SWITZELINT – BIM ISO Control</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box}
@@ -14,12 +14,9 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .sidebar{width:300px;background:#1f2933;color:#fff;padding:20px}
 .sidebar h1{font-size:18px;margin:0}
 .sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 10px}
-.sidebar button, .sidebar select{
+.sidebar select,.sidebar button{
 width:100%;padding:10px;margin:6px 0;border:none;
-background:#374151;color:#fff;border-radius:4px;cursor:pointer}
-.item{
-padding:8px;background:#111827;margin-bottom:6px;
-border-radius:4px;cursor:pointer;font-size:14px}
+background:#374151;color:#fff;border-radius:4px}
 
 /* Main */
 .main{flex:1;padding:20px;overflow:auto}
@@ -35,34 +32,27 @@ border-radius:4px;cursor:pointer;font-size:14px}
 .table{background:#fff;border-radius:6px;padding:14px}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:14px}
-input.small, select.small{width:100%;padding:6px}
+input.small,select.small{width:100%;padding:6px}
+.warn{color:#dc2626;font-size:12px}
 </style>
 </head>
 
 <body>
 <div class="app">
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <h1>SWITZELINT</h1>
-  <h2>BIM Project Control</h2>
+  <h2>BIM ISO Control</h2>
 
-  <!-- ROLE SELECTOR -->
   <select id="roleSelect" onchange="setRole()">
     <option>BIM Manager</option>
     <option>Team Member</option>
     <option>Client</option>
   </select>
 
-  <div id="managerControls">
-    <button onclick="addProject()">+ Add Project</button>
-    <button onclick="addTeam()">+ Add Team</button>
-  </div>
-
   <div id="projectList"></div>
 </div>
 
-<!-- MAIN -->
 <div class="main">
   <div class="header">
     <input id="projectName">
@@ -70,31 +60,32 @@ input.small, select.small{width:100%;padding:6px}
   </div>
 
   <div class="kpis">
-    <div class="kpi">Containers<br><strong id="kpiTotal">0</strong></div>
+    <div class="kpi">Total<br><strong id="kpiTotal">0</strong></div>
     <div class="kpi">Published<br><strong id="kpiPublished">0</strong></div>
-    <div class="kpi">WIP<br><strong id="kpiWip">0</strong></div>
-    <div class="kpi">Shared<br><strong id="kpiShared">0</strong></div>
+    <div class="kpi">Blocked<br><strong id="kpiBlocked">0</strong></div>
   </div>
 
   <div class="table">
     <table>
       <thead>
         <tr>
-          <th>ID</th><th>Team</th><th>Status</th><th>LOD</th>
+          <th>ID</th>
+          <th>Team</th>
+          <th>Status</th>
+          <th>LOD</th>
+          <th>Rule</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
     </table>
   </div>
 </div>
-
 </div>
 
 <script>
-/* ===== DATA ===== */
-let data = JSON.parse(localStorage.getItem("bimData"));
+let data=JSON.parse(localStorage.getItem("bimISO"));
 if(!data){
-  data = {
+  data={
     role:"BIM Manager",
     active:0,
     teams:["ARC","STR","MEP"],
@@ -102,92 +93,93 @@ if(!data){
   };
   save();
 }
-function save(){ localStorage.setItem("bimData",JSON.stringify(data)); }
+function save(){localStorage.setItem("bimISO",JSON.stringify(data));}
 
-/* ===== ROLE ===== */
-function setRole(){
-  data.role = roleSelect.value;
-  save();
-  applyRole();
-}
-function applyRole(){
-  const isManager = data.role==="BIM Manager";
-  managerControls.classList.toggle("hidden",!isManager);
-  addIsoBtn.classList.toggle("hidden",!isManager);
-  projectName.disabled = !isManager;
-  render();
-}
+function setRole(){data.role=roleSelect.value;save();render();}
 
-/* ===== PROJECTS ===== */
-function addProject(){
-  data.projects.push({name:"New Project",containers:[]});
-  data.active=data.projects.length-1;
-  render();
-}
-function selectProject(i){ data.active=i; render(); }
-
-/* ===== TEAMS ===== */
-function addTeam(){
-  const t=prompt("Team name");
-  if(t){ data.teams.push(t); render(); }
-}
-
-/* ===== ISO ===== */
 function addContainer(){
   data.projects[data.active].containers.push({
     id:"NEW-CONTAINER",
     team:data.teams[0],
     status:"WIP",
-    lod:"0/300"
+    current:0,
+    target:300
   });
   render();
 }
-function update(i,k,v){
-  data.projects[data.active].containers[i][k]=v;
-  render();
+
+function allowedStatuses(c){
+  if(c.status==="WIP") return ["WIP","Shared"];
+  if(c.status==="Shared") return ["Shared","Published"];
+  return ["Published"];
 }
 
-/* ===== RENDER ===== */
+function statusBlocked(c,next){
+  if(next==="Shared" && c.current<c.target) return "LOD not met";
+  if(next==="Published" && c.status!=="Shared") return "Must be Shared first";
+  return "";
+}
+
 function render(){
   const p=data.projects[data.active];
-  projectName.value=p.name;
   roleSelect.value=data.role;
+  projectName.value=p.name;
 
   projectList.innerHTML="";
   data.projects.forEach((pr,i)=>{
     const d=document.createElement("div");
-    d.className="item";
-    d.innerText=pr.name;
-    d.onclick=()=>selectProject(i);
+    d.textContent=pr.name;
+    d.onclick=()=>{data.active=i;render();};
     projectList.appendChild(d);
   });
 
   tableBody.innerHTML="";
+  let blocked=0;
+
   p.containers.forEach((c,i)=>{
-    const readOnly = data.role==="Client";
+    let rule="";
+    if(c.status!=="Published" && c.current<c.target) rule="LOD Gate Blocked";
+    if(rule) blocked++;
+
     tableBody.innerHTML+=`
     <tr>
-      <td><input class="small" ${readOnly?"disabled":""} value="${c.id}" onchange="update(${i},'id',this.value)"></td>
+      <td>${c.id}</td>
+      <td>${c.team}</td>
       <td>
-        <select class="small" ${readOnly?"disabled":""} onchange="update(${i},'team',this.value)">
-          ${data.teams.map(t=>`<option ${t===c.team?"selected":""}>${t}</option>`).join("")}
+        <select class="small" ${data.role==="Client"?"disabled":""}
+        onchange="changeStatus(${i},this.value)">
+        ${allowedStatuses(c).map(s=>`<option ${s===c.status?"selected":""}>${s}</option>`).join("")}
         </select>
       </td>
-      <td><input class="small" ${readOnly?"disabled":""} value="${c.status}" onchange="update(${i},'status',this.value)"></td>
-      <td><input class="small" ${readOnly?"disabled":""} value="${c.lod}" onchange="update(${i},'lod',this.value)"></td>
+      <td>
+        <input class="small" type="number" value="${c.current}"
+        onchange="updateLOD(${i},this.value)"> / ${c.target}
+      </td>
+      <td class="warn">${rule}</td>
     </tr>`;
   });
 
   kpiTotal.innerText=p.containers.length;
   kpiPublished.innerText=p.containers.filter(c=>c.status==="Published").length;
-  kpiWip.innerText=p.containers.filter(c=>c.status==="WIP").length;
-  kpiShared.innerText=p.containers.filter(c=>c.status==="Shared").length;
+  kpiBlocked.innerText=blocked;
 
   save();
 }
 
-projectName.onchange=e=>{data.projects[data.active].name=e.target.value;render();}
-applyRole();
+function updateLOD(i,v){
+  data.projects[data.active].containers[i].current=parseInt(v)||0;
+  render();
+}
+
+function changeStatus(i,next){
+  const c=data.projects[data.active].containers[i];
+  const msg=statusBlocked(c,next);
+  if(msg){alert(msg);return;}
+  c.status=next;
+  render();
+}
+
+render();
 </script>
 </body>
 </html>
