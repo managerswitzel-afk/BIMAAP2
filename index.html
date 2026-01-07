@@ -36,7 +36,7 @@ width:100%;padding:8px;margin-bottom:8px
 <div id="app"></div>
 
 <script>
-/* ------------------ DATA ------------------ */
+/* ========= DATA ========= */
 let user = JSON.parse(localStorage.getItem("user"));
 let projects = JSON.parse(localStorage.getItem("projects") || "{}");
 let teams = JSON.parse(localStorage.getItem("teams") || "{}");
@@ -54,95 +54,102 @@ function saveAll(){
 }
 
 const app = document.getElementById("app");
-if(!user){ login(); } else { render(); }
 
-/* ------------------ LOGIN ------------------ */
-function login(){
+/* ========= LOGIN ========= */
+if(!user){
+  renderLogin();
+} else {
+  renderApp();
+}
+
+function renderLogin(){
 app.innerHTML = `
 <div class="modal" style="display:flex">
-<div class="modal-content">
-<h3>Login</h3>
-<input id="username" placeholder="Your name">
-<select id="role">
-<option>BIM Manager</option>
-<option>Team Member</option>
-<option>Client</option>
-</select>
-<button onclick="doLogin()">Login</button>
-</div>
+  <div class="modal-content">
+    <h3>Login</h3>
+    <input id="username" placeholder="Your name">
+    <select id="role">
+      <option>BIM Manager</option>
+      <option>Team Member</option>
+      <option>Client</option>
+    </select>
+    <button onclick="doLogin()">Login</button>
+  </div>
 </div>`;
 }
 
 function doLogin(){
-user = { name: username.value, role: role.value };
-saveAll(); render();
+  user = { name: username.value || "User", role: role.value };
+  saveAll();
+  renderApp();
 }
 
 function logout(){
-localStorage.removeItem("user");
-location.reload();
+  localStorage.removeItem("user");
+  location.reload();
 }
 
-/* ------------------ RENDER ------------------ */
-function render(){
+/* ========= MAIN RENDER ========= */
+function renderApp(){
 const project = projects[currentProject];
-const tasks =
-  user.role === "Client"
-    ? []
-    : project.tasks;
-
+const tasks = project.tasks;
 
 app.innerHTML = `
 <div class="app">
-<div class="sidebar">
-<h1>SWITZELINT</h1>
-<h2>${user.role}</h2>
+  <div class="sidebar">
+    <h1>SWITZELINT</h1>
+    <h2>${user.role}</h2>
 
-${user.role==="BIM Manager"?`
-<select onchange="switchProject(this.value)">
-${Object.keys(projects).map(p=>`
-<option ${p===currentProject?"selected":""}>${p}</option>`).join("")}
-</select>
-<button onclick="addProject()">+ New Project</button>
-<button onclick="openTeam()">+ New Team</button>
-<button onclick="assignTeams()">Assign Teams to Project</button>
-`:``}
+    ${user.role==="BIM Manager" ? `
+      <select onchange="switchProject(this.value)">
+        ${Object.keys(projects).map(p=>`
+          <option ${p===currentProject?"selected":""}>${p}</option>
+        `).join("")}
+      </select>
+      <button onclick="addProject()">+ New Project</button>
+      <button onclick="openTeam()">+ New Team</button>
+      <button onclick="assignTeams()">Assign Teams</button>
+    ` : ``}
 
-${user.role!=="Client"?`<button onclick="openTask()">+ New ISO Container</button>`:``}
+    ${user.role!=="Client" ? `<button onclick="openTask()">+ New ISO Container</button>` : ``}
 
-<button onclick="exportISO()">ISO Export</button>
-<button onclick="logout()">Logout</button>
+    <button onclick="exportISO()">ISO Export</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div class="main">
+    <div class="topbar">${currentProject} – Dashboard</div>
+    ${renderKPIs(tasks)}
+    ${renderTable(tasks)}
+  </div>
 </div>
 
-<div class="main">
-<div class="topbar">${currentProject} – Project Dashboard</div>
-${dashboard(project.tasks)}
-${taskTable(tasks)}
-</div>
-</div>
-
-${taskModal()}
-${teamModal()}
+${renderTaskModal()}
+${renderTeamModal()}
 `;
 }
 
-/* ------------------ DASHBOARD ------------------ */
-function dashboard(tasks){
+/* ========= DASHBOARD ========= */
+function renderKPIs(tasks){
 const total = tasks.length;
 const published = tasks.filter(t=>t.isoStatus==="Published").length;
 return `
 <div class="kpis">
-<div class="kpi"><h4>Total Containers</h4><strong>${total}</strong></div>
-<div class="kpi"><h4>Published</h4><strong>${published}</strong></div>
+  <div class="kpi"><h4>Total Containers</h4><strong>${total}</strong></div>
+  <div class="kpi"><h4>Published</h4><strong>${published}</strong></div>
 </div>`;
 }
 
-/* ------------------ TABLE ------------------ */
-function taskTable(tasks){
+function renderTable(tasks){
+if(tasks.length===0) return "<p>No containers yet.</p>";
 return `
 <table>
 <tr>
-<th>Container ID</th><th>Team</th><th>Status</th><th>LOD</th><th>Author</th>
+<th>Container ID</th>
+<th>Team</th>
+<th>Status</th>
+<th>LOD</th>
+<th>Author</th>
 </tr>
 ${tasks.map(t=>`
 <tr>
@@ -155,22 +162,24 @@ ${tasks.map(t=>`
 </table>`;
 }
 
-/* ------------------ PROJECT ------------------ */
+/* ========= PROJECT ========= */
 function addProject(){
 const n = prompt("Project name?");
 if(n){
-projects[n] = { teams: [], tasks: [] };
-currentProject = n;
-saveAll(); render();
+  projects[n] = { teams: [], tasks: [] };
+  currentProject = n;
+  saveAll();
+  renderApp();
 }
 }
 
 function switchProject(p){
 currentProject = p;
-saveAll(); render();
+saveAll();
+renderApp();
 }
 
-/* ------------------ TEAMS ------------------ */
+/* ========= TEAMS ========= */
 function openTeam(){
 document.getElementById("teamModal").style.display="flex";
 }
@@ -180,15 +189,18 @@ teams[teamName.value] = {
 lead: teamLead.value,
 members: teamMembers.value
 };
-saveAll(); closeTeam(); render();
+saveAll();
+closeTeam();
+renderApp();
 }
 
 function assignTeams(){
-const list = Object.keys(teams).join("\n");
-const selected = prompt("Enter team names to assign (one per line):\n"+list);
+const available = Object.keys(teams).join("\n");
+const selected = prompt("Enter team names (one per line):\n"+available);
 if(selected){
 projects[currentProject].teams = selected.split("\n");
-saveAll(); render();
+saveAll();
+renderApp();
 }
 }
 
@@ -196,7 +208,7 @@ function closeTeam(){
 document.getElementById("teamModal").style.display="none";
 }
 
-/* ------------------ TASKS ------------------ */
+/* ========= TASK ========= */
 function openTask(){
 document.getElementById("taskModal").style.display="flex";
 }
@@ -205,21 +217,22 @@ function saveTask(){
 const t = {
 container: container.value,
 team: taskTeam.value,
-isoStatus: user.role==="Team Member"?"WIP":isoStatus.value,
-suitability: suitability.value,
+isoStatus: user.role==="Team Member" ? "WIP" : isoStatus.value,
 lodCurrent: lodCurrent.value,
 lodTarget: lodTarget.value,
 author: user.name
 };
 projects[currentProject].tasks.push(t);
-saveAll(); closeTask(); render();
+saveAll();
+closeTask();
+renderApp();
 }
 
 function closeTask(){
 document.getElementById("taskModal").style.display="none";
 }
 
-/* ------------------ EXPORT ------------------ */
+/* ========= EXPORT ========= */
 function exportISO(){
 let csv="Project,Container ID,Team,Status,LOD Current,LOD Target,Author\n";
 projects[currentProject].tasks.forEach(t=>{
@@ -232,43 +245,42 @@ a.download="ISO_19650_Project_Control.csv";
 a.click();
 }
 
-/* ------------------ MODALS ------------------ */
-function taskModal(){
+/* ========= MODALS ========= */
+function renderTaskModal(){
 if(user.role==="Client") return "";
 return `
 <div class="modal" id="taskModal">
-<div class="modal-content">
-<h3>ISO Container</h3>
-<input id="container" placeholder="Container ID">
-<select id="taskTeam">
-${projects[currentProject].teams.map(t=>`<option>${t}</option>`).join("")}
-</select>
-<select id="isoStatus">
-<option>WIP</option><option>Shared</option><option>Published</option>
-</select>
-<select id="suitability">
-<option>S0</option><option>S1</option><option>A</option><option>B</option>
-</select>
-<input id="lodCurrent" placeholder="LOD Current">
-<input id="lodTarget" placeholder="LOD Target">
-<button onclick="saveTask()">Save</button>
-<button onclick="closeTask()">Close</button>
-</div>
+  <div class="modal-content">
+    <h3>ISO Container</h3>
+    <input id="container" placeholder="Container ID">
+    <select id="taskTeam">
+      ${projects[currentProject].teams.map(t=>`<option>${t}</option>`).join("")}
+    </select>
+    <select id="isoStatus">
+      <option>WIP</option>
+      <option>Shared</option>
+      <option>Published</option>
+    </select>
+    <input id="lodCurrent" placeholder="LOD Current">
+    <input id="lodTarget" placeholder="LOD Target">
+    <button onclick="saveTask()">Save</button>
+    <button onclick="closeTask()">Close</button>
+  </div>
 </div>`;
 }
 
-function teamModal(){
+function renderTeamModal(){
 if(user.role!=="BIM Manager") return "";
 return `
 <div class="modal" id="teamModal">
-<div class="modal-content">
-<h3>Create Team</h3>
-<input id="teamName" placeholder="Team Name">
-<input id="teamLead" placeholder="Team Lead">
-<textarea id="teamMembers" placeholder="Members (comma separated)"></textarea>
-<button onclick="saveTeam()">Save Team</button>
-<button onclick="closeTeam()">Close</button>
-</div>
+  <div class="modal-content">
+    <h3>Create Team</h3>
+    <input id="teamName" placeholder="Team Name">
+    <input id="teamLead" placeholder="Team Lead">
+    <textarea id="teamMembers" placeholder="Members"></textarea>
+    <button onclick="saveTeam()">Save Team</button>
+    <button onclick="closeTeam()">Close</button>
+  </div>
 </div>`;
 }
 </script>
