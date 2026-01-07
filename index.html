@@ -8,12 +8,13 @@
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .app{display:flex;height:100vh}
+.hidden{display:none}
 
 /* Sidebar */
 .sidebar{width:300px;background:#1f2933;color:#fff;padding:20px}
 .sidebar h1{font-size:18px;margin:0}
 .sidebar h2{font-size:13px;color:#cbd5e1;margin:6px 0 10px}
-.sidebar button{
+.sidebar button, .sidebar select{
 width:100%;padding:10px;margin:6px 0;border:none;
 background:#374151;color:#fff;border-radius:4px;cursor:pointer}
 .item{
@@ -35,7 +36,6 @@ border-radius:4px;cursor:pointer;font-size:14px}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:14px}
 input.small, select.small{width:100%;padding:6px}
-.section{margin-top:20px}
 </style>
 </head>
 
@@ -47,20 +47,26 @@ input.small, select.small{width:100%;padding:6px}
   <h1>SWITZELINT</h1>
   <h2>BIM Project Control</h2>
 
-  <button onclick="addProject()">+ Add Project</button>
+  <!-- ROLE SELECTOR -->
+  <select id="roleSelect" onchange="setRole()">
+    <option>BIM Manager</option>
+    <option>Team Member</option>
+    <option>Client</option>
+  </select>
+
+  <div id="managerControls">
+    <button onclick="addProject()">+ Add Project</button>
+    <button onclick="addTeam()">+ Add Team</button>
+  </div>
+
   <div id="projectList"></div>
-
-  <hr style="border-color:#374151">
-
-  <button onclick="addTeam()">+ Add Team</button>
-  <div id="teamList"></div>
 </div>
 
 <!-- MAIN -->
 <div class="main">
   <div class="header">
-    <input id="projectName" placeholder="Project name">
-    <button onclick="addContainer()">+ Add ISO</button>
+    <input id="projectName">
+    <button id="addIsoBtn" onclick="addContainer()">+ Add ISO</button>
   </div>
 
   <div class="kpis">
@@ -74,34 +80,47 @@ input.small, select.small{width:100%;padding:6px}
     <table>
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Team</th>
-          <th>Status</th>
-          <th>LOD</th>
+          <th>ID</th><th>Team</th><th>Status</th><th>LOD</th>
         </tr>
       </thead>
       <tbody id="tableBody"></tbody>
     </table>
   </div>
 </div>
+
 </div>
 
 <script>
-/* ===== STORAGE ===== */
+/* ===== DATA ===== */
 let data = JSON.parse(localStorage.getItem("bimData"));
 if(!data){
   data = {
-    active: 0,
-    teams: ["ARC","STR","MEP"],
-    projects: [{ name:"Hospital Project", containers:[] }]
+    role:"BIM Manager",
+    active:0,
+    teams:["ARC","STR","MEP"],
+    projects:[{name:"Hospital Project",containers:[]}]
   };
   save();
 }
-function save(){ localStorage.setItem("bimData", JSON.stringify(data)); }
+function save(){ localStorage.setItem("bimData",JSON.stringify(data)); }
+
+/* ===== ROLE ===== */
+function setRole(){
+  data.role = roleSelect.value;
+  save();
+  applyRole();
+}
+function applyRole(){
+  const isManager = data.role==="BIM Manager";
+  managerControls.classList.toggle("hidden",!isManager);
+  addIsoBtn.classList.toggle("hidden",!isManager);
+  projectName.disabled = !isManager;
+  render();
+}
 
 /* ===== PROJECTS ===== */
 function addProject(){
-  data.projects.push({ name:"New Project", containers:[] });
+  data.projects.push({name:"New Project",containers:[]});
   data.active=data.projects.length-1;
   render();
 }
@@ -113,11 +132,11 @@ function addTeam(){
   if(t){ data.teams.push(t); render(); }
 }
 
-/* ===== CONTAINERS ===== */
+/* ===== ISO ===== */
 function addContainer(){
   data.projects[data.active].containers.push({
     id:"NEW-CONTAINER",
-    team:data.teams[0] || "",
+    team:data.teams[0],
     status:"WIP",
     lod:"0/300"
   });
@@ -131,11 +150,9 @@ function update(i,k,v){
 /* ===== RENDER ===== */
 function render(){
   const p=data.projects[data.active];
-
-  /* project name */
   projectName.value=p.name;
+  roleSelect.value=data.role;
 
-  /* sidebar projects */
   projectList.innerHTML="";
   data.projects.forEach((pr,i)=>{
     const d=document.createElement("div");
@@ -145,32 +162,22 @@ function render(){
     projectList.appendChild(d);
   });
 
-  /* teams */
-  teamList.innerHTML="";
-  data.teams.forEach(t=>{
-    const d=document.createElement("div");
-    d.className="item";
-    d.innerText=t;
-    teamList.appendChild(d);
-  });
-
-  /* table */
   tableBody.innerHTML="";
   p.containers.forEach((c,i)=>{
+    const readOnly = data.role==="Client";
     tableBody.innerHTML+=`
-      <tr>
-        <td><input class="small" value="${c.id}" onchange="update(${i},'id',this.value)"></td>
-        <td>
-          <select class="small" onchange="update(${i},'team',this.value)">
-            ${data.teams.map(t=>`<option ${t===c.team?"selected":""}>${t}</option>`).join("")}
-          </select>
-        </td>
-        <td><input class="small" value="${c.status}" onchange="update(${i},'status',this.value)"></td>
-        <td><input class="small" value="${c.lod}" onchange="update(${i},'lod',this.value)"></td>
-      </tr>`;
+    <tr>
+      <td><input class="small" ${readOnly?"disabled":""} value="${c.id}" onchange="update(${i},'id',this.value)"></td>
+      <td>
+        <select class="small" ${readOnly?"disabled":""} onchange="update(${i},'team',this.value)">
+          ${data.teams.map(t=>`<option ${t===c.team?"selected":""}>${t}</option>`).join("")}
+        </select>
+      </td>
+      <td><input class="small" ${readOnly?"disabled":""} value="${c.status}" onchange="update(${i},'status',this.value)"></td>
+      <td><input class="small" ${readOnly?"disabled":""} value="${c.lod}" onchange="update(${i},'lod',this.value)"></td>
+    </tr>`;
   });
 
-  /* KPIs */
   kpiTotal.innerText=p.containers.length;
   kpiPublished.innerText=p.containers.filter(c=>c.status==="Published").length;
   kpiWip.innerText=p.containers.filter(c=>c.status==="WIP").length;
@@ -178,8 +185,9 @@ function render(){
 
   save();
 }
-projectName.onchange=e=>{ data.projects[data.active].name=e.target.value; render(); }
-render();
+
+projectName.onchange=e=>{data.projects[data.active].name=e.target.value;render();}
+applyRole();
 </script>
 </body>
 </html>
