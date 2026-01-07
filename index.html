@@ -2,31 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT – ISO 19650 BIM LOD Planner</title>
+<title>SWITZELINT – BIM Project Control</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
 button{cursor:pointer}
 .app{display:flex;height:100vh}
-.sidebar{width:280px;background:#1f2933;color:#fff;padding:20px}
+.sidebar{width:300px;background:#1f2933;color:#fff;padding:20px}
 .sidebar h1{font-size:18px;margin:0}
 .sidebar h2{font-size:13px;color:#cbd5e1;margin:5px 0 15px}
-.sidebar button,select,input{
+.sidebar button,select,input,textarea{
 width:100%;padding:10px;margin-bottom:8px;border:none;
 background:#374151;color:#fff;border-radius:4px
 }
 .main{flex:1;padding:20px;overflow:auto}
-.topbar{display:flex;justify-content:space-between;margin-bottom:15px}
+.topbar{margin-bottom:15px;font-weight:bold}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
 .kpi{background:#fff;padding:15px;border-radius:6px}
 .kpi strong{font-size:24px}
 table{width:100%;background:#fff;border-collapse:collapse;margin-top:15px}
 th,td{padding:10px;border:1px solid #ddd;text-align:left}
 .modal{position:fixed;top:0;left:0;width:100%;height:100%;
-background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
-.modal-content{background:#fff;padding:20px;width:340px;border-radius:6px}
-.modal-content input,select,button{width:100%;padding:8px;margin-bottom:8px}
+background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center}
+.modal-content{background:#fff;padding:20px;width:360px;border-radius:6px}
+.modal-content input,select,textarea,button{
+width:100%;padding:8px;margin-bottom:8px
+}
 </style>
 </head>
 
@@ -34,39 +36,46 @@ background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center
 <div id="app"></div>
 
 <script>
+/* ------------------ DATA ------------------ */
 let user = JSON.parse(localStorage.getItem("user"));
 let projects = JSON.parse(localStorage.getItem("projects") || "{}");
+let teams = JSON.parse(localStorage.getItem("teams") || "{}");
 let currentProject = localStorage.getItem("currentProject") || "Project Alpha";
-if (!projects[currentProject]) projects[currentProject] = [];
 
-function save(){
+if (!projects[currentProject]) {
+  projects[currentProject] = { teams: [], tasks: [] };
+}
+
+function saveAll(){
+  localStorage.setItem("user", JSON.stringify(user));
   localStorage.setItem("projects", JSON.stringify(projects));
+  localStorage.setItem("teams", JSON.stringify(teams));
   localStorage.setItem("currentProject", currentProject);
 }
 
 const app = document.getElementById("app");
 if(!user){ login(); } else { render(); }
 
+/* ------------------ LOGIN ------------------ */
 function login(){
 app.innerHTML = `
-<div class="modal">
-  <div class="modal-content">
-    <h3>Login</h3>
-    <input id="username" placeholder="Your name">
-    <select id="role">
-      <option>BIM Manager</option>
-      <option>Team Member</option>
-      <option>Client</option>
-    </select>
-    <button onclick="doLogin()">Login</button>
-  </div>
+<div class="modal" style="display:flex">
+<div class="modal-content">
+<h3>Login</h3>
+<input id="username" placeholder="Your name">
+<select id="role">
+<option>BIM Manager</option>
+<option>Team Member</option>
+<option>Client</option>
+</select>
+<button onclick="doLogin()">Login</button>
+</div>
 </div>`;
 }
 
 function doLogin(){
 user = { name: username.value, role: role.value };
-localStorage.setItem("user", JSON.stringify(user));
-render();
+saveAll(); render();
 }
 
 function logout(){
@@ -74,81 +83,168 @@ localStorage.removeItem("user");
 location.reload();
 }
 
+/* ------------------ RENDER ------------------ */
 function render(){
-const tasks = projects[currentProject];
+const project = projects[currentProject];
+const tasks = project.tasks.filter(t =>
+  user.role==="BIM Manager" ||
+  user.role==="Client" ||
+  t.team === user.team
+);
+
 app.innerHTML = `
 <div class="app">
-  <div class="sidebar">
-    <h1>SWITZELINT</h1>
-    <h2>${user.role}</h2>
+<div class="sidebar">
+<h1>SWITZELINT</h1>
+<h2>${user.role}</h2>
 
-    ${user.role==="BIM Manager" ? `
-    <select onchange="switchProject(this.value)">
-      ${Object.keys(projects).map(p=>`
-      <option ${p===currentProject?"selected":""}>${p}</option>`).join("")}
-    </select>
-    <button onclick="addProject()">+ New Project</button>
-    `:""}
+${user.role==="BIM Manager"?`
+<select onchange="switchProject(this.value)">
+${Object.keys(projects).map(p=>`
+<option ${p===currentProject?"selected":""}>${p}</option>`).join("")}
+</select>
+<button onclick="addProject()">+ New Project</button>
+<button onclick="openTeam()">+ New Team</button>
+<button onclick="assignTeams()">Assign Teams to Project</button>
+`:``}
 
-    ${user.role!=="Client" ? `<button onclick="openTask()">+ New Container</button>`:""}
-    <button onclick="exportISO()">ISO Export</button>
-    <button onclick="logout()">Logout</button>
-  </div>
+${user.role!=="Client"?`<button onclick="openTask()">+ New ISO Container</button>`:``}
 
-  <div class="main">
-    <div class="topbar"><strong>${currentProject} – ISO Dashboard</strong></div>
-    ${dashboard(tasks)}
-    ${taskTable(tasks)}
-  </div>
+<button onclick="exportISO()">ISO Export</button>
+<button onclick="logout()">Logout</button>
+</div>
+
+<div class="main">
+<div class="topbar">${currentProject} – Project Dashboard</div>
+${dashboard(project.tasks)}
+${taskTable(tasks)}
+</div>
 </div>
 
 ${taskModal()}
+${teamModal()}
 `;
 }
 
+/* ------------------ DASHBOARD ------------------ */
 function dashboard(tasks){
 const total = tasks.length;
 const published = tasks.filter(t=>t.isoStatus==="Published").length;
-const shared = tasks.filter(t=>t.isoStatus==="Shared").length;
-const wip = tasks.filter(t=>t.isoStatus==="WIP").length;
 return `
 <div class="kpis">
-  <div class="kpi"><h4>Total Containers</h4><strong>${total}</strong></div>
-  <div class="kpi"><h4>WIP</h4><strong>${wip}</strong></div>
-  <div class="kpi"><h4>Shared</h4><strong>${shared}</strong></div>
-  <div class="kpi"><h4>Published</h4><strong>${published}</strong></div>
+<div class="kpi"><h4>Total Containers</h4><strong>${total}</strong></div>
+<div class="kpi"><h4>Published</h4><strong>${published}</strong></div>
 </div>`;
 }
 
+/* ------------------ TABLE ------------------ */
 function taskTable(tasks){
 return `
 <table>
 <tr>
-<th>Container ID</th><th>Status</th><th>Suitability</th><th>LOD</th><th>Author</th>
+<th>Container ID</th><th>Team</th><th>Status</th><th>LOD</th><th>Author</th>
 </tr>
 ${tasks.map(t=>`
 <tr>
 <td>${t.container}</td>
+<td>${t.team}</td>
 <td>${t.isoStatus}</td>
-<td>${t.suitability}</td>
 <td>${t.lodCurrent}/${t.lodTarget}</td>
 <td>${t.author}</td>
 </tr>`).join("")}
 </table>`;
 }
 
+/* ------------------ PROJECT ------------------ */
+function addProject(){
+const n = prompt("Project name?");
+if(n){
+projects[n] = { teams: [], tasks: [] };
+currentProject = n;
+saveAll(); render();
+}
+}
+
+function switchProject(p){
+currentProject = p;
+saveAll(); render();
+}
+
+/* ------------------ TEAMS ------------------ */
+function openTeam(){
+document.getElementById("teamModal").style.display="flex";
+}
+
+function saveTeam(){
+teams[teamName.value] = {
+lead: teamLead.value,
+members: teamMembers.value
+};
+saveAll(); closeTeam(); render();
+}
+
+function assignTeams(){
+const list = Object.keys(teams).join("\n");
+const selected = prompt("Enter team names to assign (one per line):\n"+list);
+if(selected){
+projects[currentProject].teams = selected.split("\n");
+saveAll(); render();
+}
+}
+
+function closeTeam(){
+document.getElementById("teamModal").style.display="none";
+}
+
+/* ------------------ TASKS ------------------ */
+function openTask(){
+document.getElementById("taskModal").style.display="flex";
+}
+
+function saveTask(){
+const t = {
+container: container.value,
+team: taskTeam.value,
+isoStatus: user.role==="Team Member"?"WIP":isoStatus.value,
+suitability: suitability.value,
+lodCurrent: lodCurrent.value,
+lodTarget: lodTarget.value,
+author: user.name
+};
+projects[currentProject].tasks.push(t);
+saveAll(); closeTask(); render();
+}
+
+function closeTask(){
+document.getElementById("taskModal").style.display="none";
+}
+
+/* ------------------ EXPORT ------------------ */
+function exportISO(){
+let csv="Project,Container ID,Team,Status,LOD Current,LOD Target,Author\n";
+projects[currentProject].tasks.forEach(t=>{
+csv+=`${currentProject},${t.container},${t.team},${t.isoStatus},${t.lodCurrent},${t.lodTarget},${t.author}\n`;
+});
+const blob=new Blob([csv],{type:"text/csv"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="ISO_19650_Project_Control.csv";
+a.click();
+}
+
+/* ------------------ MODALS ------------------ */
 function taskModal(){
 if(user.role==="Client") return "";
 return `
-<div class="modal">
+<div class="modal" id="taskModal">
 <div class="modal-content">
 <h3>ISO Container</h3>
-<input id="container" placeholder="Container ID (ISO)">
-<select id="isoStatus" ${user.role==="Team Member"?"disabled":""}>
-<option>WIP</option>
-<option>Shared</option>
-<option>Published</option>
-<option>Archived</option>
+<input id="container" placeholder="Container ID">
+<select id="taskTeam">
+${projects[currentProject].teams.map(t=>`<option>${t}</option>`).join("")}
+</select>
+<select id="isoStatus">
+<option>WIP</option><option>Shared</option><option>Published</option>
 </select>
 <select id="suitability">
 <option>S0</option><option>S1</option><option>A</option><option>B</option>
@@ -156,49 +252,24 @@ return `
 <input id="lodCurrent" placeholder="LOD Current">
 <input id="lodTarget" placeholder="LOD Target">
 <button onclick="saveTask()">Save</button>
-<button onclick="closeModal()">Close</button>
+<button onclick="closeTask()">Close</button>
 </div>
 </div>`;
 }
 
-function openTask(){
-document.querySelector(".modal").style.display="flex";
-}
-
-function closeModal(){
-document.querySelector(".modal").style.display="none";
-}
-
-function saveTask(){
-const t = {
-container: container.value,
-isoStatus: user.role==="Team Member" ? "WIP" : isoStatus.value,
-suitability: suitability.value,
-lodCurrent: lodCurrent.value,
-lodTarget: lodTarget.value,
-author: user.name
-};
-projects[currentProject].push(t);
-save(); render();
-}
-
-function addProject(){
-const n = prompt("Project name?");
-if(n){ projects[n]=[]; currentProject=n; save(); render(); }
-}
-
-function switchProject(p){ currentProject=p; save(); render(); }
-
-function exportISO(){
-let csv="Project,Container ID,Status,Suitability,LOD Current,LOD Target,Author\n";
-projects[currentProject].forEach(t=>{
-csv+=`${currentProject},${t.container},${t.isoStatus},${t.suitability},${t.lodCurrent},${t.lodTarget},${t.author}\n`;
-});
-const blob=new Blob([csv],{type:"text/csv"});
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="ISO_19650_Information_Delivery_Plan.csv";
-a.click();
+function teamModal(){
+if(user.role!=="BIM Manager") return "";
+return `
+<div class="modal" id="teamModal">
+<div class="modal-content">
+<h3>Create Team</h3>
+<input id="teamName" placeholder="Team Name">
+<input id="teamLead" placeholder="Team Lead">
+<textarea id="teamMembers" placeholder="Members (comma separated)"></textarea>
+<button onclick="saveTeam()">Save Team</button>
+<button onclick="closeTeam()">Close</button>
+</div>
+</div>`;
 }
 </script>
 </body>
