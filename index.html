@@ -86,11 +86,11 @@ location.reload();
 /* ------------------ RENDER ------------------ */
 function render(){
 const project = projects[currentProject];
-const tasks = project.tasks.filter(t =>
-  user.role==="BIM Manager" ||
-  user.role==="Client" ||
-  t.team === user.team
-);
+const tasks =
+  user.role === "Client"
+    ? []
+    : project.tasks;
+
 
 app.innerHTML = `
 <div class="app">
