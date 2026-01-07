@@ -2,19 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT – BIM Communication Control</title>
+<title>SWITZELINT – BIM Meetings & Actions</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 *{box-sizing:border-box}
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .app{display:flex;height:100vh}
-.hidden{display:none}
 .sidebar{width:300px;background:#1f2933;color:#fff;padding:20px}
 .main{flex:1;padding:20px;overflow:auto}
-button,select,input,textarea{padding:6px}
-table{width:100%;border-collapse:collapse}
-th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:13px}
-.log{background:#f9fafb;border:1px solid #e5e7eb;padding:8px;margin:6px 0}
+button,input,select,textarea{padding:6px;margin:4px 0}
+.card{background:#fff;border-radius:6px;padding:12px;margin-bottom:12px}
 .small{font-size:12px;color:#6b7280}
 </style>
 </head>
@@ -34,55 +31,60 @@ th,td{padding:8px;border-bottom:1px solid #e5e7eb;font-size:13px}
 
 <div class="main">
   <h2 id="projectName"></h2>
-  <button onclick="addISO()">+ Add ISO Container</button>
 
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Status</th>
-        <th>LOD</th>
-        <th>Communication</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
+  <button onclick="addMeeting()">+ Add Meeting</button>
+
+  <div id="meetingList"></div>
 </div>
+
 </div>
 
 <script>
-let data=JSON.parse(localStorage.getItem("bimComms"));
+let data=JSON.parse(localStorage.getItem("bimMeetings"));
 if(!data){
   data={
     role:"BIM Manager",
     active:0,
-    projects:[{name:"Hospital Project",containers:[]}]
+    teams:["ARC","STR","MEP"],
+    projects:[{
+      name:"Hospital Project",
+      meetings:[]
+    }]
   };
   save();
 }
-function save(){localStorage.setItem("bimComms",JSON.stringify(data));}
-
+function save(){localStorage.setItem("bimMeetings",JSON.stringify(data));}
 function setRole(){data.role=roleSelect.value;save();render();}
 
-function addISO(){
-  data.projects[data.active].containers.push({
-    id:"ISO-"+(Date.now()%1000),
-    status:"WIP",
-    lod:"0/300",
-    logs:[]
+function addMeeting(){
+  if(data.role==="Client"){alert("Read only");return;}
+  data.projects[data.active].meetings.push({
+    title:"Coordination Meeting",
+    date:new Date().toLocaleDateString(),
+    notes:"",
+    actions:[]
   });
   render();
 }
 
-function addLog(i){
-  if(data.role==="Client"){alert("Read only");return;}
-  const type=prompt("Type (WhatsApp / Email / Call / Meeting)");
-  const summary=prompt("Summary / Decision");
-  if(!type||!summary)return;
-  data.projects[data.active].containers[i].logs.push({
-    date:new Date().toLocaleString(),
-    type,summary
+function addAction(m){
+  const meeting=data.projects[data.active].meetings[m];
+  meeting.actions.push({
+    text:"New Action Item",
+    team:data.teams[0],
+    due:"",
+    status:"Open"
   });
+  render();
+}
+
+function updateMeeting(m,k,v){
+  data.projects[data.active].meetings[m][k]=v;
+  render();
+}
+
+function updateAction(m,a,k,v){
+  data.projects[data.active].meetings[m].actions[a][k]=v;
   render();
 }
 
@@ -90,24 +92,44 @@ function render(){
   roleSelect.value=data.role;
   const p=data.projects[data.active];
   projectName.innerText=p.name;
-
-  tableBody.innerHTML="";
-  p.containers.forEach((c,i)=>{
-    tableBody.innerHTML+=`
-    <tr>
-      <td>${c.id}</td>
-      <td>${c.status}</td>
-      <td>${c.lod}</td>
-      <td>
-        <button onclick="addLog(${i})">+ Log</button>
-        ${c.logs.map(l=>`
-          <div class="log">
-            <strong>${l.type}</strong> – ${l.date}<br>
-            <span class="small">${l.summary}</span>
-          </div>`).join("")}
-      </td>
-    </tr>`;
+  projectList.innerHTML="";
+  data.projects.forEach((pr,i)=>{
+    const d=document.createElement("div");
+    d.textContent=pr.name;
+    d.onclick=()=>{data.active=i;render();};
+    projectList.appendChild(d);
   });
+
+  meetingList.innerHTML="";
+  p.meetings.forEach((m,i)=>{
+    meetingList.innerHTML+=`
+    <div class="card">
+      <input value="${m.title}" ${data.role==="Client"?"disabled":""}
+        onchange="updateMeeting(${i},'title',this.value)">
+      <div class="small">${m.date}</div>
+      <textarea rows="2" placeholder="Notes"
+        ${data.role==="Client"?"disabled":""}
+        onchange="updateMeeting(${i},'notes',this.value)">${m.notes}</textarea>
+
+      <button onclick="addAction(${i})">+ Action Item</button>
+
+      ${m.actions.map((a,j)=>`
+        <div class="card">
+          <input value="${a.text}" ${data.role==="Client"?"disabled":""}
+            onchange="updateAction(${i},${j},'text',this.value)">
+          <select onchange="updateAction(${i},${j},'team',this.value)">
+            ${data.teams.map(t=>`<option ${t===a.team?"selected":""}>${t}</option>`).join("")}
+          </select>
+          <input type="date" onchange="updateAction(${i},${j},'due',this.value)">
+          <select onchange="updateAction(${i},${j},'status',this.value)">
+            <option ${a.status==="Open"?"selected":""}>Open</option>
+            <option ${a.status==="Closed"?"selected":""}>Closed</option>
+          </select>
+        </div>
+      `).join("")}
+    </div>`;
+  });
+
   save();
 }
 render();
