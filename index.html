@@ -21,6 +21,7 @@ button{cursor:pointer}
 .stat{font-size:26px;font-weight:bold}
 table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px;text-align:left}
+small{color:#6b7280}
 </style>
 </head>
 
@@ -56,6 +57,7 @@ td,th{border:1px solid #ddd;padding:6px;text-align:left}
 
     <button onclick="view('dashboard')">Dashboard</button>
     <button onclick="view('tasks')">Tasks</button>
+    <button onclick="view('documents')">ISO 19650 Docs</button>
     <button onclick="view('kpi')">KPI</button>
     <button onclick="view('team')">Team</button>
     <button onclick="logout()">Logout</button>
@@ -68,8 +70,8 @@ td,th{border:1px solid #ddd;padding:6px;text-align:left}
       <h2 id="projectTitle"></h2>
       <div class="grid">
         <div class="box"><h4>Tasks</h4><div class="stat" id="taskCount">0</div></div>
+        <div class="box"><h4>Documents</h4><div class="stat" id="docCount">0</div></div>
         <div class="box"><h4>RFIs Open</h4><div class="stat" id="rfiOpen">0</div></div>
-        <div class="box"><h4>Clashes Open</h4><div class="stat" id="clashOpen">0</div></div>
         <div class="box"><h4>LOD Complete</h4><div class="stat" id="lodPercent">0%</div></div>
       </div>
     </div>
@@ -84,6 +86,44 @@ td,th{border:1px solid #ddd;padding:6px;text-align:left}
       <ul id="taskList"></ul>
     </div>
 
+    <!-- DOCUMENTS ISO 19650 -->
+    <div id="documentsView" class="hidden">
+      <h2>ISO 19650 Documents</h2>
+
+      <div id="docAdmin" class="box">
+        <input id="docName" placeholder="Document Name">
+        <select id="docStatus">
+          <option>WIP</option>
+          <option>SHARED</option>
+          <option>PUBLISHED</option>
+          <option>ARCHIVED</option>
+        </select>
+        <select id="docSuitability">
+          <option>S0</option>
+          <option>S1</option>
+          <option>S2</option>
+          <option>A1</option>
+          <option>A2</option>
+        </select>
+        <input id="docRevision" placeholder="Revision (P01, C01)">
+        <button onclick="addDocument()">Add / Update Document</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Suitability</th>
+            <th>Revision</th>
+            <th>Updated By</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="docTable"></tbody>
+      </table>
+    </div>
+
     <!-- KPI -->
     <div id="kpiView" class="hidden">
       <h2>BIM KPIs</h2>
@@ -96,11 +136,6 @@ td,th{border:1px solid #ddd;padding:6px;text-align:left}
         <input id="rfiOpenInput" type="number" placeholder="RFIs Open">
         <input id="rfiClosedInput" type="number" placeholder="RFIs Closed">
         <button onclick="saveRFI()">Save RFIs</button>
-      </div>
-      <div class="box">
-        <input id="clashOpenInput" type="number" placeholder="Clashes Open">
-        <input id="clashResolvedInput" type="number" placeholder="Clashes Resolved">
-        <button onclick="saveClash()">Save Clashes</button>
       </div>
     </div>
 
@@ -146,18 +181,14 @@ function start(){
   loadProjects();
 }
 
-function logout(){
-  localStorage.removeItem("user");
-  location.reload();
-}
+function logout(){localStorage.removeItem("user");location.reload();}
 
 function addProject(){
   const n=newProject.value.trim();
   if(!n) return;
-  data[n]={tasks:[],kpi:{},team:{}};
+  data[n]={tasks:[],kpi:{},team:{},docs:[]};
   data[n].team[user.u]="Admin";
-  save();newProject.value="";
-  loadProjects();
+  save();newProject.value="";loadProjects();
 }
 
 function loadProjects(){
@@ -173,40 +204,46 @@ function loadProjects(){
 
 function switchProject(){currentProject=projectSelect.value;render()}
 
-function role(){
-  return data[currentProject]?.team[user.u]||"Client";
-}
+function role(){return data[currentProject]?.team[user.u]||"Client";}
 
 function view(v){
-  ["dashboard","tasks","kpi","team"].forEach(x=>{
+  ["dashboard","tasks","documents","kpi","team"].forEach(x=>{
     document.getElementById(x+"View").classList.add("hidden");
   });
   document.getElementById(v+"View").classList.remove("hidden");
 }
 
-function addTask(){
-  if(role()==="Client")return;
+function addTask(){if(role()==="Client")return;
   data[currentProject].tasks.push(taskInput.value);
-  taskInput.value="";save();render();
+  taskInput.value="";save();render();}
+
+function addDocument(){
+  if(role()==="Client")return;
+  let docs=data[currentProject].docs;
+  let d={
+    name:docName.value,
+    status:docStatus.value,
+    suit:docSuitability.value,
+    rev:docRevision.value,
+    by:user.u,
+    date:new Date().toLocaleString()
+  };
+  let i=docs.findIndex(x=>x.name===d.name);
+  i>=0?docs[i]=d:docs.push(d);
+  save();render();
 }
 
-function addMember(){
-  if(role()!=="Admin")return;
+function addMember(){if(role()!=="Admin")return;
   data[currentProject].team[teamUser.value]=teamRole.value;
-  teamUser.value="";save();render();
-}
+  teamUser.value="";save();render();}
 
 function saveLOD(){if(role()==="Client")return;
   let k=data[currentProject].kpi;
-  k.lodTotal=+lodTotal.value;k.lodDone=+lodDone.value;save();render()}
+  k.lodTotal=+lodTotal.value;k.lodDone=+lodDone.value;save();render();}
 
 function saveRFI(){if(role()==="Client")return;
   let k=data[currentProject].kpi;
-  k.rfiOpen=+rfiOpenInput.value;k.rfiClosed=+rfiClosedInput.value;save();render()}
-
-function saveClash(){if(role()==="Client")return;
-  let k=data[currentProject].kpi;
-  k.clashOpen=+clashOpenInput.value;k.clashResolved=+clashResolvedInput.value;save();render()}
+  k.rfiOpen=+rfiOpenInput.value;k.rfiClosed=+rfiClosedInput.value;save();render();}
 
 function render(){
   if(!currentProject)return;
@@ -215,12 +252,22 @@ function render(){
   let p=data[currentProject];
   taskList.innerHTML=p.tasks.map(t=>`<li>${t}</li>`).join("");
   taskCount.innerText=p.tasks.length;
+  docCount.innerText=p.docs.length;
   rfiOpen.innerText=p.kpi.rfiOpen||0;
-  clashOpen.innerText=p.kpi.clashOpen||0;
   lodPercent.innerText=p.kpi.lodTotal?Math.round((p.kpi.lodDone/p.kpi.lodTotal)*100)+"%":"0%";
+  docTable.innerHTML=p.docs.map(d=>`
+    <tr>
+      <td>${d.name}</td>
+      <td>${d.status}</td>
+      <td>${d.suit}</td>
+      <td>${d.rev}</td>
+      <td>${d.by}</td>
+      <td><small>${d.date}</small></td>
+    </tr>`).join("");
   teamTable.innerHTML=Object.entries(p.team).map(([u,r])=>`<tr><td>${u}</td><td>${r}</td></tr>`).join("");
-  teamAdmin.style.display=role()==="Admin"?"block":"none";
+  docAdmin.style.display=role()==="Client"?"none":"block";
   taskAdmin.style.display=role()==="Client"?"none":"block";
+  teamAdmin.style.display=role()==="Admin"?"block":"none";
 }
 
 function save(){localStorage.setItem("switzel",JSON.stringify(data))}
