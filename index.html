@@ -1,41 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Switzel Internal System</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<title>Switzel Internal Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-      padding: 20px;
-    }
-    input, select, button {
-      padding: 8px;
-      margin: 5px 0;
-      width: 100%;
-    }
-    button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover { background: #1d4ed8; }
-    .hidden { display: none; }
-    .box {
-      background: #020617;
-      padding: 15px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-    nav button {
-      width: auto;
-      margin-right: 5px;
-    }
-  </style>
+<style>
+body { background:#0f172a; color:#e5e7eb; font-family:Arial; padding:20px }
+.box { background:#020617; padding:15px; border-radius:8px; margin-bottom:15px }
+input, select, button { padding:8px; width:100%; margin:5px 0 }
+button { background:#2563eb; color:#fff; border:none; cursor:pointer }
+button:hover { background:#1d4ed8 }
+.hidden { display:none }
+nav button { width:auto; margin-right:5px }
+</style>
 </head>
 
 <body>
@@ -43,7 +21,7 @@
 <!-- LOGIN -->
 <div id="loginBox" class="box">
   <h2>Admin Login</h2>
-  <input id="email" type="email" placeholder="Email">
+  <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Password">
   <button onclick="login()">Login</button>
 </div>
@@ -51,145 +29,168 @@
 <!-- APP -->
 <div id="app" class="hidden">
 
-  <nav class="box">
-    <button onclick="show('teams')">Teams</button>
-    <button onclick="show('projects')">Projects</button>
-    <button onclick="show('logs')">Activity Logs</button>
-    <button onclick="logout()">Logout</button>
-  </nav>
+<nav class="box">
+  <button onclick="show('teams')">Teams</button>
+  <button onclick="show('projects')">Projects</button>
+  <button onclick="show('tasks')">Tasks</button>
+  <button onclick="show('logs')">Logs</button>
+  <button onclick="logout()">Logout</button>
+</nav>
 
-  <!-- TEAMS -->
-  <div id="teams" class="box hidden">
-    <h2>Teams</h2>
-    <input id="teamName" placeholder="Team name">
-    <button onclick="addTeam()">Add Team</button>
-    <ul id="teamList"></ul>
-  </div>
+<!-- TEAMS -->
+<div id="teams" class="box hidden">
+  <h3>Teams</h3>
+  <input id="teamName" placeholder="Team name">
+  <button onclick="addTeam()">Add Team</button>
+  <ul id="teamList"></ul>
+</div>
 
-  <!-- PROJECTS -->
-  <div id="projects" class="box hidden">
-    <h2>Projects</h2>
+<!-- PROJECTS -->
+<div id="projects" class="box hidden">
+  <h3>Projects</h3>
+  <input id="projectName" placeholder="Project name">
+  <button onclick="addProject()">Create Project</button>
+  <div id="projectList"></div>
+</div>
 
-    <input id="projectName" placeholder="Project name">
-    <button onclick="addProject()">Create Project</button>
+<!-- TASKS -->
+<div id="tasks" class="box hidden">
+  <h3>Tasks</h3>
 
-    <h3>Assign Team</h3>
-    <select id="projectSelect"></select>
-    <select id="teamSelect"></select>
-    <button onclick="assignTeam()">Assign</button>
+  <input id="taskTitle" placeholder="Task title">
 
-    <h3>Overview</h3>
-    <div id="projectList"></div>
-  </div>
+  <select id="taskProject"></select>
+  <select id="taskTeam"></select>
 
-  <!-- LOGS -->
-  <div id="logs" class="box hidden">
-    <h2>Activity Logs</h2>
-    <ul id="logList"></ul>
-  </div>
+  <button onclick="addTask()">Add Task</button>
+
+  <div id="taskList"></div>
+</div>
+
+<!-- LOGS -->
+<div id="logs" class="box hidden">
+  <h3>Activity Logs</h3>
+  <ul id="logList"></ul>
+</div>
 
 </div>
 
-<!-- FIREBASE + APP LOGIC -->
+<!-- FIREBASE + APP -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-  /* 🔥 FIREBASE CONFIG (YOUR PROJECT) */
-  const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "switzelint-53a3f.firebaseapp.com",
-    projectId: "switzelint-53a3f",
-    appId: "YOUR_APP_ID"
-  };
+/* 🔥 FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "switzelint-53a3f.firebaseapp.com",
+  projectId: "switzelint-53a3f",
+  appId: "YOUR_APP_ID"
+};
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-  /* GLOBAL DATA (NO DATABASE) */
-  const teams = [];
-  const projects = [];
-  const logs = [];
+/* DATA (NO DATABASE) */
+const teams = [];
+const projects = [];
+const tasks = [];
+const logs = [];
 
-  /* AUTH */
-  window.login = () => {
-    signInWithEmailAndPassword(auth, email.value, password.value)
-      .catch(err => alert(err.message));
-  };
+/* AUTH */
+window.login = () =>
+  signInWithEmailAndPassword(auth, email.value, password.value)
+    .catch(e => alert(e.message));
 
-  window.logout = () => signOut(auth);
+window.logout = () => signOut(auth);
 
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      loginBox.classList.add("hidden");
-      app.classList.remove("hidden");
-      show("teams");
-      log("Admin logged in");
-    } else {
-      loginBox.classList.remove("hidden");
-      app.classList.add("hidden");
-    }
+onAuthStateChanged(auth, user => {
+  if (user) {
+    loginBox.classList.add("hidden");
+    app.classList.remove("hidden");
+    show("teams");
+    log("Admin logged in");
+  } else {
+    loginBox.classList.remove("hidden");
+    app.classList.add("hidden");
+  }
+});
+
+/* NAV */
+window.show = id => {
+  ["teams","projects","tasks","logs"].forEach(x =>
+    document.getElementById(x).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+};
+
+/* TEAMS */
+window.addTeam = () => {
+  if (!teamName.value) return;
+  teams.push(teamName.value);
+  teamName.value = "";
+  log("Team added");
+  render();
+};
+
+/* PROJECTS */
+window.addProject = () => {
+  if (!projectName.value) return;
+  projects.push(projectName.value);
+  projectName.value = "";
+  log("Project created");
+  render();
+};
+
+/* TASKS */
+window.addTask = () => {
+  if (!taskTitle.value) return;
+
+  tasks.push({
+    title: taskTitle.value,
+    project: taskProject.value,
+    team: taskTeam.value,
+    status: "Pending"
   });
 
-  /* NAV */
-  window.show = id => {
-    ["teams","projects","logs"].forEach(s =>
-      document.getElementById(s).classList.add("hidden")
-    );
-    document.getElementById(id).classList.remove("hidden");
-  };
+  log("Task created");
+  taskTitle.value = "";
+  render();
+};
 
-  /* TEAMS */
-  window.addTeam = () => {
-    if (!teamName.value) return;
-    teams.push(teamName.value);
-    teamName.value = "";
-    log("Team added");
-    renderTeams();
-  };
+window.updateStatus = (i, s) => {
+  tasks[i].status = s;
+  log(`Task marked ${s}`);
+  render();
+};
 
-  function renderTeams() {
-    teamList.innerHTML = teams.map(t => `<li>${t}</li>`).join("");
-    renderProjects();
-  }
+/* RENDER */
+function render() {
+  teamList.innerHTML = teams.map(t => `<li>${t}</li>`).join("");
+  projectList.innerHTML = projects.map(p => `<li>${p}</li>`).join("");
 
-  /* PROJECTS */
-  window.addProject = () => {
-    if (!projectName.value) return;
-    projects.push({ name: projectName.value, teams: [] });
-    projectName.value = "";
-    log("Project created");
-    renderProjects();
-  };
+  taskProject.innerHTML = projects.map(p => `<option>${p}</option>`).join("");
+  taskTeam.innerHTML = teams.map(t => `<option>${t}</option>`).join("");
 
-  window.assignTeam = () => {
-    const p = projects[projectSelect.selectedIndex];
-    const t = teamSelect.value;
-    if (!p || !t) return;
-    if (!p.teams.includes(t)) {
-      p.teams.push(t);
-      log(`Assigned ${t} to ${p.name}`);
-    }
-    renderProjects();
-  };
+  taskList.innerHTML = tasks.map((t,i) => `
+    <div class="box">
+      <strong>${t.title}</strong><br>
+      Project: ${t.project}<br>
+      Team: ${t.team}<br>
+      Status:
+      <select onchange="updateStatus(${i}, this.value)">
+        <option ${t.status==="Pending"?"selected":""}>Pending</option>
+        <option ${t.status==="In Progress"?"selected":""}>In Progress</option>
+        <option ${t.status==="Done"?"selected":""}>Done</option>
+      </select>
+    </div>
+  `).join("");
+}
 
-  function renderProjects() {
-    projectSelect.innerHTML = projects.map(p => `<option>${p.name}</option>`).join("");
-    teamSelect.innerHTML = teams.map(t => `<option>${t}</option>`).join("");
-
-    projectList.innerHTML = projects.map(p => `
-      <div style="margin:10px 0">
-        <strong>${p.name}</strong>
-        <ul>${p.teams.map(t => `<li>${t}</li>`).join("")}</ul>
-      </div>
-    `).join("");
-  }
-
-  /* LOGS */
-  function log(msg) {
-    logs.unshift(`${new Date().toLocaleTimeString()} — ${msg}`);
-    logList.innerHTML = logs.map(l => `<li>${l}</li>`).join("");
-  }
+/* LOGS */
+function log(m) {
+  logs.unshift(new Date().toLocaleTimeString()+" — "+m);
+  logList.innerHTML = logs.map(l => `<li>${l}</li>`).join("");
+}
 </script>
 
 </body>
