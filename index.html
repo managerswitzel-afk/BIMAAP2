@@ -5,7 +5,7 @@
 <title>SWITZELINT – BIM Cloud Platform</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Firebase COMPAT SDKs -->
+<!-- Firebase COMPAT SDKs (REQUIRED FOR GITHUB PAGES) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -24,12 +24,12 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
 
 <body>
 
-<!-- LOGIN -->
+<!-- LOGIN SCREEN -->
 <div id="login" class="center">
   <div class="card">
     <h2>SWITZELINT</h2>
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password (min 6 chars)">
     <select id="role">
       <option>BIM Manager</option>
       <option>Team Member</option>
@@ -40,7 +40,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
   </div>
 </div>
 
-<!-- APP -->
+<!-- MAIN APP -->
 <div id="app" class="app hidden">
   <div class="sidebar">
     <h3>SWITZELINT</h3>
@@ -49,13 +49,13 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
   </div>
   <div class="main">
     <h2>Welcome to SWITZELINT</h2>
-    <p>Firebase authentication is working.</p>
-    <p>Your BIM system will load here next.</p>
+    <p>Firebase Authentication is working.</p>
+    <p>This is where your BIM Project Management system will load next.</p>
   </div>
 </div>
 
 <script>
-/* 🔧 FIREBASE CONFIG (YOUR VALUES ARE CORRECT) */
+/* ================= FIREBASE CONFIG ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
   authDomain: "switzelint-53a3f.firebaseapp.com",
@@ -65,53 +65,34 @@ const firebaseConfig = {
   appId: "1:349606864096:web:e695676bb4b5c6c5271c85"
 };
 
-/* ✅ INITIALIZE ONCE (COMPAT WAY) */
+/* ================= INITIALIZE FIREBASE ================= */
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* LOGIN */
+/* ================= LOGIN ================= */
 function loginUser(){
-  const emailVal = document.getElementById("email").value;
-  const passVal = document.getElementById("password").value;
-  const roleVal = document.getElementById("role").value;
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
+  const role = document.getElementById("role").value;
 
-  if(!emailVal || !passVal){
+  if(!email || !password){
     loginMsg.innerText = "Email and password required";
     return;
   }
 
-  auth.signInWithEmailAndPassword(emailVal, passVal)
-  .catch(() => auth.createUserWithEmailAndPassword(emailVal, passVal))
-  .then(cred => {
-    if(!cred) return;
-    return db.collection("users").doc(cred.user.uid).set({
-      email: emailVal,
-      role: roleVal,
-      organization: "SWITZELINT"
-    });
-  })
-  .catch(err => loginMsg.innerText = err.message);
-}
-
-/* LOGOUT */
-function logoutUser(){
-  auth.signOut();
-}
-
-/* AUTH STATE */
-auth.onAuthStateChanged(user => {
-  if(user){
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    document.getElementById("userInfo").innerText = user.email;
-  } else {
-    document.getElementById("login").classList.remove("hidden");
-    document.getElementById("app").classList.add("hidden");
+  if(password.length < 6){
+    loginMsg.innerText = "Password must be at least 6 characters";
+    return;
   }
-});
-</script>
 
-</body>
-</html>
+  auth.signInWithEmailAndPassword(email, password)
+    .catch(() => auth.createUserWithEmailAndPassword(email, password))
+    .then(cred => {
+      if(!cred) return;
+      return db.collection("users").doc(cred.user.uid).set({
+        email: email,
+        role: role,
+        organization: "SWITZELINT",
+        createdAt: firebase.firestore
