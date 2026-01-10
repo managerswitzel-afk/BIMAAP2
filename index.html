@@ -1,176 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>SWITZELINT – BIM Cloud Platform</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- Firebase COMPAT SDKs -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-<style>
-body{margin:0;font-family:Arial;background:#f3f4f6}
-.hidden{display:none}
-.center{height:100vh;display:flex;align-items:center;justify-content:center}
-.card{background:#fff;padding:20px;border-radius:6px;width:340px}
-input,select,button{width:100%;padding:8px;margin:6px 0}
-.app{display:flex;height:100vh}
-.sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
-.main{flex:1;padding:20px}
-</style>
+  <meta charset="UTF-8" />
+  <title>Switzel Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 
 <body>
+  <h2>Login</h2>
 
-<!-- LOGIN -->
-<div id="login" class="center">
-  <div class="card">
-    <h2>SWITZELINT</h2>
-    <input id="email" type="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password (min 6 chars)">
-    <select id="role">
-      <option>BIM Manager</option>
-      <option>Team Member</option>
-      <option>Client</option>
-    </select>
-    <button onclick="loginUser()">Login / Register</button>
-    <p id="loginMsg" style="color:red;font-size:12px"></p>
-  </div>
-</div>
+  <input type="email" id="email" placeholder="Email" /><br /><br />
+  <input type="password" id="password" placeholder="Password" /><br /><br />
 
-<!-- APP -->
-<div id="app" class="app hidden">
-  <div class="sidebar">
-    <h3>SWITZELINT</h3>
-    <p id="userInfo"></p>
-    <p id="userRole"></p>
-    <button onclick="logoutUser()">Logout</button>
-  </div>
+  <button onclick="loginUser()">Login</button>
+  <button onclick="registerUser()">Register</button>
 
-  <div class="main">
+  <p id="status"></p>
 
-    <!-- BIM MANAGER -->
-    <div id="managerDashboard" class="hidden">
-      <h2>BIM Manager Dashboard</h2>
-      <ul>
-        <li>📁 All Projects</li>
-        <li>📊 BIM KPIs</li>
-        <li>👥 Teams & Roles</li>
-      </ul>
-    </div>
+  <hr />
 
-    <!-- TEAM MEMBER -->
-    <div id="teamDashboard" class="hidden">
-      <h2>Team Member Dashboard</h2>
-      <ul>
-        <li>✅ My Assigned Tasks</li>
-        <li>📄 My Deliverables</li>
-      </ul>
-    </div>
+  <h3 id="welcome"></h3>
+  <button onclick="logoutUser()">Logout</button>
 
-    <!-- CLIENT -->
-    <div id="clientDashboard" class="hidden">
-      <h2>Client Dashboard</h2>
-      <ul>
-        <li>📊 Project Progress</li>
-        <li>📄 Read-only Reports</li>
-      </ul>
-    </div>
+  <!-- Firebase SDKs (NO imports, NO modules) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
-  </div>
-</div>
+  <script>
+    // 🔐 Firebase Config (YOURS)
+    const firebaseConfig = {
+      apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
+      authDomain: "switzelint-53a3f.firebaseapp.com",
+      projectId: "switzelint-53a3f",
+      appId: "1:349606864096:web:e695676bb4b5c6c5271c85"
+    };
 
-<script>
-/* ================= FIREBASE CONFIG ================= */
-const firebaseConfig = {
-  apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
-  authDomain: "switzelint-53a3f.firebaseapp.com",
-  projectId: "switzelint-53a3f",
-  storageBucket: "switzelint-53a3f.appspot.com",
-  messagingSenderId: "349606864096",
-  appId: "1:349606864096:web:e695676bb4b5c6c5271c85"
-};
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
-/* ================= INITIALIZE FIREBASE ================= */
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+    // ✅ LOGIN
+    function loginUser() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
 
-/* ================= LOGIN FUNCTION ================= */
-function loginUser(){
-  const email = document.getElementById("email").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const role = document.getElementById("role").value;
-  const msg = document.getElementById("loginMsg");
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
 
-  if(!email || !password){
-    msg.innerText = "Email and password required";
-    return;
-  }
+          // Store locally (NO DATABASE)
+          localStorage.setItem("user", JSON.stringify({
+            uid: user.uid,
+            email: user.email
+          }));
 
-  if(password.length < 6){
-    msg.innerText = "Password must be at least 6 characters";
-    return;
-  }
+          document.getElementById("status").innerText = "Login successful";
+          showUser();
+        })
+        .catch((error) => {
+          document.getElementById("status").innerText = error.message;
+        });
+    }
 
-  auth.signInWithEmailAndPassword(email, password)
-    .catch(() => auth.createUserWithEmailAndPassword(email, password))
-    .then(cred => {
-      if(!cred) return;
-      return db.collection("users").doc(cred.user.uid).set({
-        email: email,
-        role: role,
-        organization: "SWITZELINT",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    // ✅ REGISTER
+    function registerUser() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(() => {
+          document.getElementById("status").innerText = "Registration successful. You can login now.";
+        })
+        .catch((error) => {
+          document.getElementById("status").innerText = error.message;
+        });
+    }
+
+    // ✅ LOGOUT
+    function logoutUser() {
+      auth.signOut().then(() => {
+        localStorage.removeItem("user");
+        document.getElementById("welcome").innerText = "";
+        document.getElementById("status").innerText = "Logged out";
       });
-    })
-    .catch(err => msg.innerText = err.message);
-}
+    }
 
-/* ================= LOGOUT ================= */
-function logoutUser(){
-  auth.signOut();
-}
-
-/* ================= AUTH STATE ================= */
-auth.onAuthStateChanged(user => {
-  if(user){
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    document.getElementById("userInfo").innerText = user.email;
-
-    db.collection("users").doc(user.uid).get().then(doc => {
-      if(!doc.exists) return;
-
-      const role = doc.data().role;
-      document.getElementById("userRole").innerText = "Role: " + role;
-
-      // Hide all dashboards
-      document.getElementById("managerDashboard").classList.add("hidden");
-      document.getElementById("teamDashboard").classList.add("hidden");
-      document.getElementById("clientDashboard").classList.add("hidden");
-
-      // Show based on role
-      if(role === "BIM Manager"){
-        document.getElementById("managerDashboard").classList.remove("hidden");
+    // ✅ SHOW USER (LOCAL)
+    function showUser() {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user) {
+        document.getElementById("welcome").innerText =
+          "Welcome, " + user.email;
       }
-      if(role === "Team Member"){
-        document.getElementById("teamDashboard").classList.remove("hidden");
-      }
-      if(role === "Client"){
-        document.getElementById("clientDashboard").classList.remove("hidden");
-      }
-    });
+    }
 
-  } else {
-    document.getElementById("login").classList.remove("hidden");
-    document.getElementById("app").classList.add("hidden");
-  }
-});
-
-</script>
-
+    // Restore session on refresh
+    showUser();
+  </script>
 </body>
 </html>
