@@ -18,6 +18,7 @@ input, select, button { width:100%; padding:8px; margin:6px 0 }
 h3 { margin-top:0 }
 .log { font-size:12px; color:#555 }
 .badge { background:#2563eb; color:#fff; padding:4px 8px; border-radius:4px; font-size:12px }
+.export { background:#16a34a; color:#fff }
 </style>
 </head>
 
@@ -29,9 +30,9 @@ h3 { margin-top:0 }
     <h2>SWITZELINT</h2>
     <input id="username" placeholder="Your name" />
     <select id="role">
-      <option value="Admin">Admin</option>
-      <option value="Staff">Staff</option>
-      <option value="Client">Client</option>
+      <option>Admin</option>
+      <option>Staff</option>
+      <option>Client</option>
     </select>
     <button onclick="login()">Login</button>
   </div>
@@ -41,7 +42,7 @@ h3 { margin-top:0 }
 <div id="app" class="app hidden">
   <div class="sidebar">
     <h3>SWITZELINT</h3>
-    <p><span id="userName"></span></p>
+    <p id="userName"></p>
     <p class="badge" id="roleBadge"></p>
 
     <button onclick="show('tasks')">Tasks</button>
@@ -49,11 +50,12 @@ h3 { margin-top:0 }
     <button onclick="show('teams')">Teams</button>
     <button onclick="show('logs')">Logs</button>
 
+    <button class="export" onclick="exportExcel()">⬇ Export Excel</button>
     <button onclick="logout()">Logout</button>
   </div>
 
   <div class="main">
-    <!-- TASKS -->
+
     <div id="tasksView">
       <h2>Tasks</h2>
       <input id="taskInput" placeholder="New task" />
@@ -61,7 +63,6 @@ h3 { margin-top:0 }
       <ul id="taskList"></ul>
     </div>
 
-    <!-- PROJECTS -->
     <div id="projectsView" class="hidden">
       <h2>Projects</h2>
       <input id="projectInput" placeholder="New project" />
@@ -69,7 +70,6 @@ h3 { margin-top:0 }
       <ul id="projectList"></ul>
     </div>
 
-    <!-- TEAMS -->
     <div id="teamsView" class="hidden">
       <h2>Teams</h2>
       <input id="teamInput" placeholder="New team" />
@@ -77,17 +77,17 @@ h3 { margin-top:0 }
       <ul id="teamList"></ul>
     </div>
 
-    <!-- LOGS -->
     <div id="logsView" class="hidden">
       <h2>Activity Log</h2>
       <ul id="logList"></ul>
     </div>
+
   </div>
 </div>
 
 <script type="module">
 /* =====================
-   STEP 1–2: STATE
+   STATE
 ===================== */
 let currentUser = null;
 let currentRole = "Staff";
@@ -97,111 +97,95 @@ const projects = [];
 const teams = [];
 const logs = [];
 
-/* =====================
-   STEP 5: LOCAL STORAGE
-===================== */
-const STORAGE_KEY = "switzelint_offline_v1";
+const STORAGE_KEY = "switzelint_offline_v2";
 
-function saveData() {
+/* =====================
+   STORAGE
+===================== */
+function saveData(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    currentUser,
-    currentRole,
-    tasks,
-    projects,
-    teams,
-    logs
+    currentUser,currentRole,tasks,projects,teams,logs
   }));
 }
-
-function loadData() {
-  const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
-  if (!data) return;
-
-  currentUser = data.currentUser;
-  currentRole = data.currentRole;
-  tasks.push(...data.tasks);
-  projects.push(...data.projects);
-  teams.push(...data.teams);
-  logs.push(...data.logs);
+function loadData(){
+  const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  if(!d) return;
+  currentUser=d.currentUser;
+  currentRole=d.currentRole;
+  tasks.push(...d.tasks);
+  projects.push(...d.projects);
+  teams.push(...d.teams);
+  logs.push(...d.logs);
 }
 
 /* =====================
    AUTH
 ===================== */
-window.login = () => {
-  const name = document.getElementById("username").value;
-  const role = document.getElementById("role").value;
-  if (!name) return alert("Enter name");
-
-  currentUser = name;
-  currentRole = role;
-
+window.login=()=>{
+  const n=username.value;
+  if(!n) return alert("Enter name");
+  currentUser=n;
+  currentRole=role.value;
   saveData();
-  startApp();
-  log(`${role} logged in`);
+  start();
+  log(`${currentRole} logged in`);
 };
 
-window.logout = () => {
+window.logout=()=>{
   saveData();
   location.reload();
 };
 
-function startApp() {
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  document.getElementById("userName").innerText = currentUser;
-  document.getElementById("roleBadge").innerText = currentRole;
+function start(){
+  login.classList.add("hidden");
+  app.classList.remove("hidden");
+  userName.innerText=currentUser;
+  roleBadge.innerText=currentRole;
   render();
 }
 
 /* =====================
-   UI NAV
+   NAV
 ===================== */
-window.show = view => {
-  ["tasks","projects","teams","logs"].forEach(v=>{
-    document.getElementById(v+"View").classList.add("hidden");
+window.show=v=>{
+  ["tasks","projects","teams","logs"].forEach(x=>{
+    document.getElementById(x+"View").classList.add("hidden");
   });
-  document.getElementById(view+"View").classList.remove("hidden");
+  document.getElementById(v+"View").classList.remove("hidden");
 };
 
 /* =====================
    CRUD
 ===================== */
-window.addTask = () => {
-  const val = taskInput.value;
-  if(!val) return;
-  tasks.push({ text: val, done:false });
+window.addTask=()=>{
+  if(!taskInput.value) return;
+  tasks.push({text:taskInput.value,done:false});
   taskInput.value="";
   log("Task added");
-  saveData();
-  render();
+  saveData(); render();
 };
 
-window.addProject = () => {
-  const val = projectInput.value;
-  if(!val) return;
-  projects.push(val);
+window.addProject=()=>{
+  if(!projectInput.value) return;
+  projects.push(projectInput.value);
   projectInput.value="";
   log("Project added");
-  saveData();
-  render();
+  saveData(); render();
 };
 
-window.addTeam = () => {
-  const val = teamInput.value;
-  if(!val) return;
-  teams.push(val);
+window.addTeam=()=>{
+  if(!teamInput.value) return;
+  teams.push(teamInput.value);
   teamInput.value="";
   log("Team added");
-  saveData();
-  render();
+  saveData(); render();
 };
 
 /* =====================
-   LOGGING
+   LOG
 ===================== */
-function log(msg){
-  logs.unshift(new Date().toLocaleString()+" — "+msg);
+function log(m){
+  logs.unshift(new Date().toLocaleString()+" — "+m);
   saveData();
 }
 
@@ -210,15 +194,11 @@ function log(msg){
 ===================== */
 function render(){
   taskList.innerHTML="";
-  tasks.forEach((t,i)=>{
+  tasks.forEach(t=>{
     const li=document.createElement("li");
-    li.innerText=t.text;
-    li.onclick=()=>{
-      t.done=!t.done;
-      li.style.textDecoration=t.done?"line-through":"";
-      saveData();
-    };
+    li.textContent=t.text;
     if(t.done) li.style.textDecoration="line-through";
+    li.onclick=()=>{t.done=!t.done; saveData(); render();};
     taskList.appendChild(li);
   });
 
@@ -228,10 +208,33 @@ function render(){
 }
 
 /* =====================
+   STEP 6: EXPORT EXCEL
+===================== */
+window.exportExcel=()=>{
+  let csv="TYPE,VALUE,STATUS\n";
+
+  tasks.forEach(t=>{
+    csv+=`Task,${t.text},${t.done?"Done":"Open"}\n`;
+  });
+  projects.forEach(p=>{
+    csv+=`Project,${p},\n`;
+  });
+  teams.forEach(t=>{
+    csv+=`Team,${t},\n`;
+  });
+
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="switzelint_data.csv";
+  a.click();
+};
+
+/* =====================
    INIT
 ===================== */
 loadData();
-if(currentUser) startApp();
+if(currentUser) start();
 </script>
 
 </body>
