@@ -2,13 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT – Secure BIM Platform</title>
+<title>SWITZELINT – BIM Cloud Platform</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
 <style>
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .hidden{display:none}
 .center{height:100vh;display:flex;align-items:center;justify-content:center}
-.card{background:#fff;padding:20px;border-radius:6px;width:320px}
+.card{background:#fff;padding:20px;border-radius:6px;width:340px}
 input,select,button{width:100%;padding:8px;margin:6px 0}
 .app{display:flex;height:100vh}
 .sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
@@ -29,7 +35,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
       <option>Team Member</option>
       <option>Client</option>
     </select>
-    <button onclick="login()">Login</button>
+    <button onclick="login()">Login / Register</button>
     <p id="loginMsg" style="color:red;font-size:12px"></p>
   </div>
 </div>
@@ -43,41 +49,56 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
   </div>
   <div class="main">
     <h2>Welcome to SWITZELINT</h2>
-    <p>This is your secure BIM Project Management platform.</p>
-    <p><strong>Next:</strong> Projects, Teams, ISO, Meetings will load here.</p>
+    <p>Firebase authentication is working.</p>
+    <p>Your BIM system will load here next.</p>
   </div>
 </div>
 
 <script>
-/* ===== SIMPLE AUTH (LOCAL PLACEHOLDER) ===== */
-let user = JSON.parse(localStorage.getItem("switzUser"));
+/* 🔧 REPLACE ONLY THIS CONFIG WITH YOUR FIREBASE VALUES */
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
+};
+/* 🔧 STOP REPLACING HERE */
 
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* AUTH LOGIC */
 function login(){
-  const email=document.getElementById("email").value;
-  const role=document.getElementById("role").value;
+  const email=email.value;
+  const password=password.value;
+  const role=role.value;
 
-  if(!email){
-    loginMsg.innerText="Email required";
-    return;
+  auth.signInWithEmailAndPassword(email,password)
+  .catch(()=>auth.createUserWithEmailAndPassword(email,password))
+  .then(cred=>{
+    if(!cred) return;
+    db.collection("users").doc(cred.user.uid).set({
+      email,role,org:"SWITZELINT"
+    });
+  })
+  .catch(e=>loginMsg.innerText=e.message);
+}
+
+function logout(){ auth.signOut(); }
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    login.classList.add("hidden");
+    app.classList.remove("hidden");
+    userInfo.innerText=user.email;
+  }else{
+    login.classList.remove("hidden");
+    app.classList.add("hidden");
   }
-
-  user={email,role};
-  localStorage.setItem("switzUser",JSON.stringify(user));
-  loadApp();
-}
-
-function logout(){
-  localStorage.removeItem("switzUser");
-  location.reload();
-}
-
-function loadApp(){
-  login.classList.add("hidden");
-  app.classList.remove("hidden");
-  userInfo.innerText = user.email + " (" + user.role + ")";
-}
-
-if(user){ loadApp(); }
+});
 </script>
 
 </body>
