@@ -1,126 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Switzel Admin Login</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .box {
-      background: #020617;
-      padding: 24px;
-      border-radius: 10px;
-      width: 320px;
-      box-shadow: 0 10px 40px rgba(0,0,0,.5);
-    }
-    h2 { text-align: center; }
-    input, button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 6px;
-      border: none;
-    }
-    input { background: #0f172a; color: white; }
-    button {
-      background: #2563eb;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover { background: #1d4ed8; }
-    .hidden { display: none; }
-    .logout { background: #dc2626; margin-top: 20px; }
-  </style>
+<meta charset="UTF-8">
+<title>Switzel Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background:#020617;
+  color:#e5e7eb;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  margin:0;
+}
+.box {
+  background:#020617;
+  border:1px solid #1e293b;
+  padding:25px;
+  border-radius:10px;
+  width:330px;
+}
+input,button {
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+  border-radius:6px;
+  border:none;
+}
+input { background:#0f172a; color:white; }
+button { background:#2563eb; color:white; cursor:pointer; }
+button:hover { background:#1d4ed8; }
+.hidden { display:none; }
+.logout { background:#dc2626; }
+.small { font-size:12px; color:#94a3b8; text-align:center; }
+</style>
 </head>
 <body>
 
-<div class="box" id="authBox">
+<!-- LOGIN -->
+<div class="box" id="loginBox">
   <h2>Admin Login</h2>
-  <input id="email" type="email" placeholder="Email" />
-  <input id="password" type="password" placeholder="Password" />
-  <button onclick="loginUser()">Login</button>
-  <button onclick="registerUser()">Register</button>
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
+  <button onclick="register()">Register</button>
+  <button onclick="resetPassword()">Forgot Password</button>
+  <p class="small">Admin access only</p>
 </div>
 
+<!-- DASHBOARD -->
 <div class="box hidden" id="dashboard">
   <h2>Admin Dashboard</h2>
   <p id="userEmail"></p>
-  <p>Role: <strong>ADMIN</strong></p>
+  <p>Status: <strong>ADMIN</strong></p>
+  <p id="verifyMsg"></p>
+  <button onclick="sendVerification()">Verify Email</button>
   <button class="logout" onclick="logout()">Logout</button>
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-  import {
-    getAuth,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    onAuthStateChanged,
-    signOut
-  } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-  // 🔥 YOUR FIREBASE CONFIG (NO FIRESTORE USED)
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
-    authDomain: "switzelint-53a3f.firebaseapp.com",
-    projectId: "switzelint-53a3f",
-    appId: "1:429882814571:web:YOUR_APP_ID"
-  };
+/* 🔐 ADMIN EMAILS (NO DB, NO BILLING) */
+const ADMINS = [
+  "managerswitzel@gmail.com",
+  "asad.syed@switzelint.com"
+];
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
+/* 🔥 FIREBASE CONFIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
+  authDomain: "switzelint-53a3f.firebaseapp.com",
+  projectId: "switzelint-53a3f",
+  appId: "1:349606864096:web:e695676bb4b5c6c5271c85"
+};
 
-  // 🔑 LOGIN
-  window.loginUser = async function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
 
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (e) {
-      alert(e.message);
-    }
-  };
+/* 🔑 LOGIN */
+window.login = async () => {
+  try {
+    await signInWithEmailAndPassword(
+      auth,
+      email.value,
+      password.value
+    );
+  } catch (e) {
+    alert(e.message);
+  }
+};
 
-  // 🆕 REGISTER
-  window.registerUser = async function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+/* 🆕 REGISTER */
+window.register = async () => {
+  try {
+    await createUserWithEmailAndPassword(
+      auth,
+      email.value,
+      password.value
+    );
+    alert("Registered. Verify your email.");
+  } catch (e) {
+    alert(e.message);
+  }
+};
 
-    try {
-      await createUserWithEmailAndPassword(auth, email, password);
-    } catch (e) {
-      alert(e.message);
-    }
-  };
+/* 🔁 RESET PASSWORD */
+window.resetPassword = async () => {
+  if (!email.value) return alert("Enter email first");
+  await sendPasswordResetEmail(auth, email.value);
+  alert("Password reset email sent");
+};
 
-  // 🔄 SESSION HANDLER
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      document.getElementById("authBox").classList.add("hidden");
-      document.getElementById("dashboard").classList.remove("hidden");
-      document.getElementById("userEmail").innerText = user.email;
-    } else {
-      document.getElementById("authBox").classList.remove("hidden");
-      document.getElementById("dashboard").classList.add("hidden");
-    }
-  });
+/* 📧 VERIFY EMAIL */
+window.sendVerification = async () => {
+  await sendEmailVerification(auth.currentUser);
+  alert("Verification email sent");
+};
 
-  // 🚪 LOGOUT
-  window.logout = function () {
+/* 🚪 LOGOUT */
+window.logout = () => signOut(auth);
+
+/* 🔄 AUTH STATE */
+onAuthStateChanged(auth, user => {
+  if (!user) {
+    loginBox.classList.remove("hidden");
+    dashboard.classList.add("hidden");
+    return;
+  }
+
+  /* ❌ BLOCK NON-ADMINS */
+  if (!ADMINS.includes(user.email)) {
+    alert("Access denied: Not admin");
     signOut(auth);
-  };
+    return;
+  }
+
+  loginBox.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+  userEmail.innerText = user.email;
+
+  verifyMsg.innerText = user.emailVerified
+    ? "Email verified ✅"
+    : "Email not verified ❌";
+});
 </script>
 
 </body>
 </html>
+
