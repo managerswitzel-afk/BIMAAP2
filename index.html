@@ -5,7 +5,7 @@
 <title>SWITZELINT – BIM Cloud Platform</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Firebase COMPAT SDKs (NO IMPORTS) -->
+<!-- Firebase COMPAT SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -55,23 +55,17 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
 </div>
 
 <script>
-/* 🔧 REPLACE ONLY VALUES BELOW */
-
+/* 🔧 FIREBASE CONFIG (YOUR VALUES ARE CORRECT) */
 const firebaseConfig = {
   apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
   authDomain: "switzelint-53a3f.firebaseapp.com",
   projectId: "switzelint-53a3f",
-  storageBucket: "switzelint-53a3f.firebasestorage.app",
+  storageBucket: "switzelint-53a3f.appspot.com",
   messagingSenderId: "349606864096",
-  appId: "1:349606864096:web:e695676bb4b5c6c5271c85",
-  measurementId: "G-ZL7ZENE8PL"
+  appId: "1:349606864096:web:e695676bb4b5c6c5271c85"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-/* 🔧 STOP */
-
+/* ✅ INITIALIZE ONCE (COMPAT WAY) */
 firebase.initializeApp(firebaseConfig);
 
 const auth = firebase.auth();
@@ -106,7 +100,7 @@ function logoutUser(){
   auth.signOut();
 }
 
-/* STATE */
+/* AUTH STATE */
 auth.onAuthStateChanged(user => {
   if(user){
     document.getElementById("login").classList.add("hidden");
