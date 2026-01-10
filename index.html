@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT BIM Admin</title>
+<title>SWITZELINT BIM SYSTEM</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body{margin:0;font-family:Arial;background:#f3f4f6}
@@ -15,6 +15,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
 .main{flex:1;padding:20px;overflow:auto}
 .badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px}
 .log{font-size:12px;color:#555}
+.file{border:1px solid #ccc;padding:6px;margin:6px 0;background:#fff}
 button{cursor:pointer}
 </style>
 </head>
@@ -42,17 +43,19 @@ button{cursor:pointer}
   <div class="sidebar">
     <h3>SWITZELINT</h3>
     <p id="userName"></p>
-    <p class="badge" id="roleBadge"></p>
+    <span class="badge" id="roleBadge"></span>
 
     <button onclick="showView('tasks')">Tasks</button>
     <button onclick="showView('projects')">Projects</button>
     <button onclick="showView('teams')">Teams</button>
+    <button onclick="showView('files')">Files</button>
     <button onclick="showView('logs')">Logs</button>
     <button onclick="logout()">Logout</button>
   </div>
 
   <div class="main">
 
+    <!-- TASKS -->
     <div id="tasksView">
       <h2>Tasks</h2>
       <div id="taskAdmin">
@@ -62,174 +65,8 @@ button{cursor:pointer}
       <ul id="taskList"></ul>
     </div>
 
+    <!-- PROJECTS -->
     <div id="projectsView" class="hidden">
       <h2>Projects</h2>
       <div id="projectAdmin">
-        <input id="projectInput" placeholder="New project">
-        <button onclick="addProject()">Add Project</button>
-      </div>
-      <ul id="projectList"></ul>
-    </div>
-
-    <div id="teamsView" class="hidden">
-      <h2>Teams</h2>
-      <div id="teamAdmin">
-        <input id="teamInput" placeholder="New team">
-        <button onclick="addTeam()">Add Team</button>
-      </div>
-      <ul id="teamList"></ul>
-    </div>
-
-    <div id="logsView" class="hidden">
-      <h2>Activity Log</h2>
-      <ul id="logList"></ul>
-    </div>
-
-  </div>
-</div>
-
-<script>
-/* =====================
-   DATABASE
-===================== */
-const db={
-  users:JSON.parse(localStorage.getItem("users")||"{}"),
-  tasks:JSON.parse(localStorage.getItem("tasks")||"[]"),
-  projects:JSON.parse(localStorage.getItem("projects")||"[]"),
-  teams:JSON.parse(localStorage.getItem("teams")||"[]"),
-  logs:JSON.parse(localStorage.getItem("logs")||"[]")
-};
-let currentUser=null,currentRole="";
-
-/* =====================
-   HASH PASSWORD
-===================== */
-function hash(p){return btoa(p)}
-
-/* =====================
-   AUTH
-===================== */
-function login(){
-  const u=username.value.trim();
-  const p=password.value.trim();
-  const r=role.value;
-
-  if(!u||!p){msg.innerText="Missing credentials";return}
-
-  if(!db.users[u]){
-    db.users[u]={pass:hash(p),role:r};
-    save();
-  }else{
-    if(db.users[u].pass!==hash(p)){
-      msg.innerText="Wrong password";
-      return;
-    }
-  }
-
-  currentUser=u;
-  currentRole=db.users[u].role;
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  userName.innerText="User: "+currentUser;
-  roleBadge.innerText=currentRole;
-  applyRoleRules();
-  log("Logged in");
-  renderAll();
-}
-
-function logout(){
-  location.reload();
-}
-
-/* =====================
-   ROLE RULES
-===================== */
-function applyRoleRules(){
-  if(currentRole==="Client"){
-    taskAdmin.style.display="none";
-    projectAdmin.style.display="none";
-    teamAdmin.style.display="none";
-  }
-  if(currentRole==="Staff"){
-    teamAdmin.style.display="none";
-  }
-}
-
-/* =====================
-   NAV
-===================== */
-function showView(v){
-  ["tasks","projects","teams","logs"].forEach(x=>{
-    document.getElementById(x+"View").classList.add("hidden");
-  });
-  document.getElementById(v+"View").classList.remove("hidden");
-}
-
-/* =====================
-   TASKS
-===================== */
-function addTask(){
-  db.tasks.push({text:taskInput.value});
-  taskInput.value="";
-  save();log("Task added");renderTasks();
-}
-function renderTasks(){
-  taskList.innerHTML="";
-  db.tasks.forEach(t=>taskList.innerHTML+=`<li>${t.text}</li>`);
-}
-
-/* =====================
-   PROJECTS
-===================== */
-function addProject(){
-  db.projects.push({text:projectInput.value});
-  projectInput.value="";
-  save();log("Project added");renderProjects();
-}
-function renderProjects(){
-  projectList.innerHTML="";
-  db.projects.forEach(p=>projectList.innerHTML+=`<li>${p.text}</li>`);
-}
-
-/* =====================
-   TEAMS
-===================== */
-function addTeam(){
-  db.teams.push({text:teamInput.value});
-  teamInput.value="";
-  save();log("Team added");renderTeams();
-}
-function renderTeams(){
-  teamList.innerHTML="";
-  db.teams.forEach(t=>teamList.innerHTML+=`<li>${t.text}</li>`);
-}
-
-/* =====================
-   LOGS
-===================== */
-function log(t){
-  db.logs.unshift(new Date().toLocaleString()+" – "+currentUser+" – "+t);
-  save();renderLogs();
-}
-function renderLogs(){
-  logList.innerHTML="";
-  db.logs.forEach(l=>logList.innerHTML+=`<li class="log">${l}</li>`);
-}
-
-/* =====================
-   STORAGE
-===================== */
-function save(){
-  localStorage.setItem("users",JSON.stringify(db.users));
-  localStorage.setItem("tasks",JSON.stringify(db.tasks));
-  localStorage.setItem("projects",JSON.stringify(db.projects));
-  localStorage.setItem("teams",JSON.stringify(db.teams));
-  localStorage.setItem("logs",JSON.stringify(db.logs));
-}
-function renderAll(){
-  renderTasks();renderProjects();renderTeams();renderLogs();
-}
-</script>
-
-</body>
-</html>
+        <input id="projectInput"
