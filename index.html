@@ -12,7 +12,7 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 input,select,button{width:100%;padding:8px;margin:6px 0}
 button{cursor:pointer}
 .app{display:flex;height:100vh}
-.sidebar{width:240px;background:#1f2933;color:#fff;padding:20px}
+.sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
 .sidebar button{background:#374151;color:#fff;border:none;margin:4px 0}
 .main{flex:1;padding:20px;overflow:auto}
 .badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px}
@@ -47,6 +47,16 @@ button{cursor:pointer}
     <p id="userInfo"></p>
     <span class="badge" id="roleBadge"></span>
 
+    <hr>
+
+    <select id="projectSelect" onchange="switchProject()"></select>
+    <div id="projectAdmin">
+      <input id="newProject" placeholder="New Project Name">
+      <button onclick="addProject()">Add Project</button>
+    </div>
+
+    <hr>
+
     <button onclick="view('dashboard')">Dashboard</button>
     <button onclick="view('tasks')">Tasks</button>
     <button onclick="view('kpi')">KPI</button>
@@ -57,7 +67,7 @@ button{cursor:pointer}
 
     <!-- DASHBOARD -->
     <div id="dashboardView">
-      <h2>Project Overview</h2>
+      <h2 id="projectTitle"></h2>
       <div class="grid">
         <div class="box">
           <h4>Tasks</h4>
@@ -93,24 +103,24 @@ button{cursor:pointer}
       <h2>BIM KPIs</h2>
 
       <div class="box">
-        <h3>LOD Planner</h3>
+        <h3>LOD</h3>
         <input id="lodTotal" type="number" placeholder="Total elements">
         <input id="lodDone" type="number" placeholder="Completed elements">
-        <button onclick="saveLOD()">Save LOD</button>
+        <button onclick="saveLOD()">Save</button>
       </div>
 
       <div class="box">
         <h3>RFIs</h3>
-        <input id="rfiOpenInput" type="number" placeholder="Open RFIs">
-        <input id="rfiClosedInput" type="number" placeholder="Closed RFIs">
-        <button onclick="saveRFI()">Save RFIs</button>
+        <input id="rfiOpenInput" type="number" placeholder="Open">
+        <input id="rfiClosedInput" type="number" placeholder="Closed">
+        <button onclick="saveRFI()">Save</button>
       </div>
 
       <div class="box">
         <h3>Clashes</h3>
-        <input id="clashOpenInput" type="number" placeholder="Open Clashes">
-        <input id="clashResolvedInput" type="number" placeholder="Resolved Clashes">
-        <button onclick="saveClash()">Save Clashes</button>
+        <input id="clashOpenInput" type="number" placeholder="Open">
+        <input id="clashResolvedInput" type="number" placeholder="Resolved">
+        <button onclick="saveClash()">Save</button>
       </div>
     </div>
 
@@ -119,28 +129,56 @@ button{cursor:pointer}
 
 <script>
 let user=null;
-let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
-let kpi=JSON.parse(localStorage.getItem("kpi")||"{}");
+let data=JSON.parse(localStorage.getItem("switzel")||"{}");
+let currentProject=null;
 
 function login(){
-  const u=username.value,p=password.value,r=role.value;
-  if(!u||!p){msg.innerText="Required";return}
-  user={u,r};
+  if(!username.value||!password.value){msg.innerText="Required";return}
+  user={u:username.value,r:role.value};
   localStorage.setItem("user",JSON.stringify(user));
   start();
 }
 
 function start(){
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
+  login.classList.add("hidden");
+  app.classList.remove("hidden");
   userInfo.innerText=user.u;
   roleBadge.innerText=user.r;
-  render();
+  if(user.r==="Client") projectAdmin.style.display="none";
+  loadProjects();
 }
 
 function logout(){
   localStorage.removeItem("user");
   location.reload();
+}
+
+function addProject(){
+  const name=newProject.value.trim();
+  if(!name) return;
+  data[name]={tasks:[],kpi:{}};
+  save();
+  newProject.value="";
+  loadProjects();
+}
+
+function loadProjects(){
+  projectSelect.innerHTML="";
+  Object.keys(data).forEach(p=>{
+    let o=document.createElement("option");
+    o.text=p;
+    projectSelect.add(o);
+  });
+  if(!currentProject && Object.keys(data).length){
+    currentProject=Object.keys(data)[0];
+  }
+  projectSelect.value=currentProject;
+  render();
+}
+
+function switchProject(){
+  currentProject=projectSelect.value;
+  render();
 }
 
 function view(v){
@@ -151,40 +189,47 @@ function view(v){
 }
 
 function addTask(){
-  tasks.push(taskInput.value);
+  data[currentProject].tasks.push(taskInput.value);
   taskInput.value="";
-  localStorage.setItem("tasks",JSON.stringify(tasks));
+  save();
   render();
 }
 
 function saveLOD(){
-  kpi.lodTotal=+lodTotal.value;
-  kpi.lodDone=+lodDone.value;
-  localStorage.setItem("kpi",JSON.stringify(kpi));
-  render();
+  let k=data[currentProject].kpi;
+  k.lodTotal=+lodTotal.value;
+  k.lodDone=+lodDone.value;
+  save();render();
 }
 
 function saveRFI(){
-  kpi.rfiOpen=+rfiOpenInput.value;
-  kpi.rfiClosed=+rfiClosedInput.value;
-  localStorage.setItem("kpi",JSON.stringify(kpi));
-  render();
+  let k=data[currentProject].kpi;
+  k.rfiOpen=+rfiOpenInput.value;
+  k.rfiClosed=+rfiClosedInput.value;
+  save();render();
 }
 
 function saveClash(){
-  kpi.clashOpen=+clashOpenInput.value;
-  kpi.clashResolved=+clashResolvedInput.value;
-  localStorage.setItem("kpi",JSON.stringify(kpi));
-  render();
+  let k=data[currentProject].kpi;
+  k.clashOpen=+clashOpenInput.value;
+  k.clashResolved=+clashResolvedInput.value;
+  save();render();
 }
 
 function render(){
-  taskList.innerHTML=tasks.map(t=>`<li>${t}</li>`).join("");
-  taskCount.innerText=tasks.length;
-  rfiOpen.innerText=kpi.rfiOpen||0;
-  clashOpen.innerText=kpi.clashOpen||0;
-  let pct=kpi.lodTotal?Math.round((kpi.lodDone/kpi.lodTotal)*100):0;
+  if(!currentProject) return;
+  projectTitle.innerText=currentProject;
+  let p=data[currentProject];
+  taskList.innerHTML=p.tasks.map(t=>`<li>${t}</li>`).join("");
+  taskCount.innerText=p.tasks.length;
+  rfiOpen.innerText=p.kpi.rfiOpen||0;
+  clashOpen.innerText=p.kpi.clashOpen||0;
+  let pct=p.kpi.lodTotal?Math.round((p.kpi.lodDone/p.kpi.lodTotal)*100):0;
   lodPercent.innerText=pct+"%";
+}
+
+function save(){
+  localStorage.setItem("switzel",JSON.stringify(data));
 }
 
 const saved=JSON.parse(localStorage.getItem("user"));
