@@ -45,12 +45,40 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
   <div class="sidebar">
     <h3>SWITZELINT</h3>
     <p id="userInfo"></p>
+    <p id="userRole"></p>
     <button onclick="logoutUser()">Logout</button>
   </div>
+
   <div class="main">
-    <h2>Welcome to SWITZELINT</h2>
-    <p>Firebase Authentication is working.</p>
-    <p>Your BIM system will load here next.</p>
+
+    <!-- BIM MANAGER -->
+    <div id="managerDashboard" class="hidden">
+      <h2>BIM Manager Dashboard</h2>
+      <ul>
+        <li>📁 All Projects</li>
+        <li>📊 BIM KPIs</li>
+        <li>👥 Teams & Roles</li>
+      </ul>
+    </div>
+
+    <!-- TEAM MEMBER -->
+    <div id="teamDashboard" class="hidden">
+      <h2>Team Member Dashboard</h2>
+      <ul>
+        <li>✅ My Assigned Tasks</li>
+        <li>📄 My Deliverables</li>
+      </ul>
+    </div>
+
+    <!-- CLIENT -->
+    <div id="clientDashboard" class="hidden">
+      <h2>Client Dashboard</h2>
+      <ul>
+        <li>📊 Project Progress</li>
+        <li>📄 Read-only Reports</li>
+      </ul>
+    </div>
+
   </div>
 </div>
 
@@ -112,11 +140,36 @@ auth.onAuthStateChanged(user => {
     document.getElementById("login").classList.add("hidden");
     document.getElementById("app").classList.remove("hidden");
     document.getElementById("userInfo").innerText = user.email;
+
+    db.collection("users").doc(user.uid).get().then(doc => {
+      if(!doc.exists) return;
+
+      const role = doc.data().role;
+      document.getElementById("userRole").innerText = "Role: " + role;
+
+      // Hide all dashboards
+      document.getElementById("managerDashboard").classList.add("hidden");
+      document.getElementById("teamDashboard").classList.add("hidden");
+      document.getElementById("clientDashboard").classList.add("hidden");
+
+      // Show based on role
+      if(role === "BIM Manager"){
+        document.getElementById("managerDashboard").classList.remove("hidden");
+      }
+      if(role === "Team Member"){
+        document.getElementById("teamDashboard").classList.remove("hidden");
+      }
+      if(role === "Client"){
+        document.getElementById("clientDashboard").classList.remove("hidden");
+      }
+    });
+
   } else {
     document.getElementById("login").classList.remove("hidden");
     document.getElementById("app").classList.add("hidden");
   }
 });
+
 </script>
 
 </body>
