@@ -1,9 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>SWITZELINT – BIM Admin Panel</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1f2933">
 
 <style>
 body { margin:0; font-family:Arial; background:#f3f4f6 }
@@ -15,10 +19,9 @@ input, select, button { width:100%; padding:8px; margin:6px 0 }
 .sidebar { width:240px; background:#1f2933; color:#fff; padding:20px }
 .sidebar button { margin-top:6px }
 .main { flex:1; padding:20px; overflow:auto }
-h3 { margin-top:0 }
-.log { font-size:12px; color:#555 }
-.badge { background:#2563eb; color:#fff; padding:4px 8px; border-radius:4px; font-size:12px }
+.badge { background:#2563eb; color:#fff; padding:4px 8px; border-radius:4px }
 .export { background:#16a34a; color:#fff }
+.log { font-size:12px; color:#555 }
 </style>
 </head>
 
@@ -28,7 +31,7 @@ h3 { margin-top:0 }
 <div id="login" class="center">
   <div class="card">
     <h2>SWITZELINT</h2>
-    <input id="username" placeholder="Your name" />
+    <input id="username" placeholder="Your name">
     <select id="role">
       <option>Admin</option>
       <option>Staff</option>
@@ -58,21 +61,21 @@ h3 { margin-top:0 }
 
     <div id="tasksView">
       <h2>Tasks</h2>
-      <input id="taskInput" placeholder="New task" />
+      <input id="taskInput" placeholder="New task">
       <button onclick="addTask()">Add Task</button>
       <ul id="taskList"></ul>
     </div>
 
     <div id="projectsView" class="hidden">
       <h2>Projects</h2>
-      <input id="projectInput" placeholder="New project" />
+      <input id="projectInput" placeholder="New project">
       <button onclick="addProject()">Add Project</button>
       <ul id="projectList"></ul>
     </div>
 
     <div id="teamsView" class="hidden">
       <h2>Teams</h2>
-      <input id="teamInput" placeholder="New team" />
+      <input id="teamInput" placeholder="New team">
       <button onclick="addTeam()">Add Team</button>
       <ul id="teamList"></ul>
     </div>
@@ -89,153 +92,6 @@ h3 { margin-top:0 }
 /* =====================
    STATE
 ===================== */
-let currentUser = null;
-let currentRole = "Staff";
-
-const tasks = [];
-const projects = [];
-const teams = [];
-const logs = [];
-
-const STORAGE_KEY = "switzelint_offline_v2";
-
-/* =====================
-   STORAGE
-===================== */
-function saveData(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    currentUser,currentRole,tasks,projects,teams,logs
-  }));
-}
-function loadData(){
-  const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
-  if(!d) return;
-  currentUser=d.currentUser;
-  currentRole=d.currentRole;
-  tasks.push(...d.tasks);
-  projects.push(...d.projects);
-  teams.push(...d.teams);
-  logs.push(...d.logs);
-}
-
-/* =====================
-   AUTH
-===================== */
-window.login=()=>{
-  const n=username.value;
-  if(!n) return alert("Enter name");
-  currentUser=n;
-  currentRole=role.value;
-  saveData();
-  start();
-  log(`${currentRole} logged in`);
-};
-
-window.logout=()=>{
-  saveData();
-  location.reload();
-};
-
-function start(){
-  login.classList.add("hidden");
-  app.classList.remove("hidden");
-  userName.innerText=currentUser;
-  roleBadge.innerText=currentRole;
-  render();
-}
-
-/* =====================
-   NAV
-===================== */
-window.show=v=>{
-  ["tasks","projects","teams","logs"].forEach(x=>{
-    document.getElementById(x+"View").classList.add("hidden");
-  });
-  document.getElementById(v+"View").classList.remove("hidden");
-};
-
-/* =====================
-   CRUD
-===================== */
-window.addTask=()=>{
-  if(!taskInput.value) return;
-  tasks.push({text:taskInput.value,done:false});
-  taskInput.value="";
-  log("Task added");
-  saveData(); render();
-};
-
-window.addProject=()=>{
-  if(!projectInput.value) return;
-  projects.push(projectInput.value);
-  projectInput.value="";
-  log("Project added");
-  saveData(); render();
-};
-
-window.addTeam=()=>{
-  if(!teamInput.value) return;
-  teams.push(teamInput.value);
-  teamInput.value="";
-  log("Team added");
-  saveData(); render();
-};
-
-/* =====================
-   LOG
-===================== */
-function log(m){
-  logs.unshift(new Date().toLocaleString()+" — "+m);
-  saveData();
-}
-
-/* =====================
-   RENDER
-===================== */
-function render(){
-  taskList.innerHTML="";
-  tasks.forEach(t=>{
-    const li=document.createElement("li");
-    li.textContent=t.text;
-    if(t.done) li.style.textDecoration="line-through";
-    li.onclick=()=>{t.done=!t.done; saveData(); render();};
-    taskList.appendChild(li);
-  });
-
-  projectList.innerHTML=projects.map(p=>`<li>${p}</li>`).join("");
-  teamList.innerHTML=teams.map(t=>`<li>${t}</li>`).join("");
-  logList.innerHTML=logs.map(l=>`<li class="log">${l}</li>`).join("");
-}
-
-/* =====================
-   STEP 6: EXPORT EXCEL
-===================== */
-window.exportExcel=()=>{
-  let csv="TYPE,VALUE,STATUS\n";
-
-  tasks.forEach(t=>{
-    csv+=`Task,${t.text},${t.done?"Done":"Open"}\n`;
-  });
-  projects.forEach(p=>{
-    csv+=`Project,${p},\n`;
-  });
-  teams.forEach(t=>{
-    csv+=`Team,${t},\n`;
-  });
-
-  const blob=new Blob([csv],{type:"text/csv"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="switzelint_data.csv";
-  a.click();
-};
-
-/* =====================
-   INIT
-===================== */
-loadData();
-if(currentUser) start();
-</script>
-
-</body>
-</html>
+let currentUser=null;
+let currentRole="Staff";
+const
