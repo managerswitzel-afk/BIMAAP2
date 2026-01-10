@@ -1,243 +1,195 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Switzel Admin Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <title>Switzel Internal System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<style>
-body {
-  margin:0;
-  font-family: Arial, sans-serif;
-  background:#020617;
-  color:#e5e7eb;
-}
-.hidden { display:none; }
-
-/* Layout */
-.app {
-  display:flex;
-  height:100vh;
-}
-.sidebar {
-  width:220px;
-  background:#020617;
-  border-right:1px solid #1e293b;
-  padding:15px;
-}
-.sidebar h2 {
-  margin-bottom:20px;
-}
-.sidebar button {
-  width:100%;
-  margin-bottom:10px;
-  padding:10px;
-  background:#0f172a;
-  border:none;
-  color:white;
-  cursor:pointer;
-  border-radius:6px;
-}
-.sidebar button:hover {
-  background:#1e293b;
-}
-.main {
-  flex:1;
-  padding:25px;
-}
-
-/* Login */
-.login {
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-}
-.login-box {
-  width:330px;
-  border:1px solid #1e293b;
-  padding:25px;
-  border-radius:10px;
-}
-input, button {
-  width:100%;
-  padding:10px;
-  margin-top:10px;
-  border-radius:6px;
-  border:none;
-}
-input { background:#0f172a; color:white; }
-button.primary { background:#2563eb; color:white; }
-button.danger { background:#dc2626; color:white; }
-.small { font-size:12px; color:#94a3b8; }
-</style>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      padding: 20px;
+    }
+    input, select, button {
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+    .hidden { display: none; }
+    .box {
+      background: #020617;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    nav button {
+      width: auto;
+      margin-right: 5px;
+    }
+  </style>
 </head>
 
 <body>
 
 <!-- LOGIN -->
-<div class="login" id="loginBox">
-  <div class="login-box">
-    <h2>Admin Login</h2>
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-    <button class="primary" onclick="login()">Login</button>
-    <button onclick="register()">Register</button>
-    <button onclick="resetPassword()">Forgot Password</button>
-    <p class="small">Admin access only</p>
-  </div>
+<div id="loginBox" class="box">
+  <h2>Admin Login</h2>
+  <input id="email" type="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
 </div>
 
 <!-- APP -->
-<div class="app hidden" id="app">
-  <div class="sidebar">
-    <h2>Admin</h2>
-    <button onclick="showPage('overview')">Overview</button>
-    <button onclick="showPage('projects')">Projects</button>
-    <button onclick="showPage('teams')">Teams</button>
-    <button onclick="showPage('logs')">Activity Logs</button>
-    <button onclick="showPage('settings')">Settings</button>
-    <button class="danger" onclick="logout()">Logout</button>
+<div id="app" class="hidden">
+
+  <nav class="box">
+    <button onclick="show('teams')">Teams</button>
+    <button onclick="show('projects')">Projects</button>
+    <button onclick="show('logs')">Activity Logs</button>
+    <button onclick="logout()">Logout</button>
+  </nav>
+
+  <!-- TEAMS -->
+  <div id="teams" class="box hidden">
+    <h2>Teams</h2>
+    <input id="teamName" placeholder="Team name">
+    <button onclick="addTeam()">Add Team</button>
+    <ul id="teamList"></ul>
   </div>
 
-  <div class="main">
-    <!-- OVERVIEW -->
-    <div id="overview">
-      <h1>Dashboard</h1>
-      <p>Welcome, <strong id="userEmail"></strong></p>
-      <p>Status: <strong>ADMIN</strong></p>
-    </div>
+  <!-- PROJECTS -->
+  <div id="projects" class="box hidden">
+    <h2>Projects</h2>
 
-    <!-- PROJECTS -->
-    <div id="projects" class="hidden">
-      <h1>Projects</h1>
-      <p>No database connected.</p>
-      <p>This section is ready for future upgrade.</p>
-    </div>
+    <input id="projectName" placeholder="Project name">
+    <button onclick="addProject()">Create Project</button>
 
-    <!-- TEAMS -->
-    <div id="teams" class="hidden">
-      <h1>Teams</h1>
-      <ul id="teamList"></ul>
-      <input id="teamInput" placeholder="Add team name">
-      <button onclick="addTeam()">Add Team</button>
-    </div>
+    <h3>Assign Team</h3>
+    <select id="projectSelect"></select>
+    <select id="teamSelect"></select>
+    <button onclick="assignTeam()">Assign</button>
 
-    <!-- LOGS -->
-    <div id="logs" class="hidden">
-      <h1>Activity Logs</h1>
-      <ul id="logList"></ul>
-    </div>
-
-    <!-- SETTINGS -->
-    <div id="settings" class="hidden">
-      <h1>Settings</h1>
-      <p>Email verified: <span id="verifyStatus"></span></p>
-      <button onclick="sendVerification()">Send Verification</button>
-    </div>
+    <h3>Overview</h3>
+    <div id="projectList"></div>
   </div>
+
+  <!-- LOGS -->
+  <div id="logs" class="box hidden">
+    <h2>Activity Logs</h2>
+    <ul id="logList"></ul>
+  </div>
+
 </div>
 
+<!-- FIREBASE + APP LOGIC -->
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
-  sendEmailVerification,
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-/* ADMIN EMAILS */
-const ADMINS = [
-  "managerswitzel@gmail.com",
-  "asad.syed@switzelint.com"
-];
+  /* 🔥 FIREBASE CONFIG (YOUR PROJECT) */
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "switzelint-53a3f.firebaseapp.com",
+    projectId: "switzelint-53a3f",
+    appId: "YOUR_APP_ID"
+  };
 
-/* FIREBASE */
-const firebaseConfig = {
-  apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
-  authDomain: "switzelint-53a3f.firebaseapp.com",
-  projectId: "switzelint-53a3f",
-  appId: "1:349606864096:web:e695676bb4b5c6c5271c85"
-};
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
 
-const appFirebase = initializeApp(firebaseConfig);
-const auth = getAuth(appFirebase);
+  /* GLOBAL DATA (NO DATABASE) */
+  const teams = [];
+  const projects = [];
+  const logs = [];
 
-/* STATE */
-const teams = [];
-const logs = [];
+  /* AUTH */
+  window.login = () => {
+    signInWithEmailAndPassword(auth, email.value, password.value)
+      .catch(err => alert(err.message));
+  };
 
-function log(msg) {
-  logs.push(msg);
-  logList.innerHTML = logs.map(l => `<li>${l}</li>`).join("");
-}
+  window.logout = () => signOut(auth);
 
-/* NAV */
-window.showPage = id => {
-  document.querySelectorAll(".main > div").forEach(d => d.classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
-};
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      loginBox.classList.add("hidden");
+      app.classList.remove("hidden");
+      show("teams");
+      log("Admin logged in");
+    } else {
+      loginBox.classList.remove("hidden");
+      app.classList.add("hidden");
+    }
+  });
 
-/* AUTH */
-window.login = async () => {
-  try {
-    await signInWithEmailAndPassword(auth, email.value, password.value);
-  } catch (e) { alert(e.message); }
-};
+  /* NAV */
+  window.show = id => {
+    ["teams","projects","logs"].forEach(s =>
+      document.getElementById(s).classList.add("hidden")
+    );
+    document.getElementById(id).classList.remove("hidden");
+  };
 
-window.register = async () => {
-  try {
-    await createUserWithEmailAndPassword(auth, email.value, password.value);
-    alert("Registered. Verify email.");
-  } catch (e) { alert(e.message); }
-};
+  /* TEAMS */
+  window.addTeam = () => {
+    if (!teamName.value) return;
+    teams.push(teamName.value);
+    teamName.value = "";
+    log("Team added");
+    renderTeams();
+  };
 
-window.resetPassword = async () => {
-  await sendPasswordResetEmail(auth, email.value);
-  alert("Reset email sent");
-};
-
-window.logout = () => signOut(auth);
-
-window.sendVerification = async () => {
-  await sendEmailVerification(auth.currentUser);
-  alert("Verification sent");
-};
-
-/* TEAMS */
-window.addTeam = () => {
-  if (!teamInput.value) return;
-  teams.push(teamInput.value);
-  teamList.innerHTML = teams.map(t => `<li>${t}</li>`).join("");
-  log("Team added: " + teamInput.value);
-  teamInput.value = "";
-};
-
-/* AUTH STATE */
-onAuthStateChanged(auth, user => {
-  if (!user) {
-    loginBox.classList.remove("hidden");
-    app.classList.add("hidden");
-    return;
+  function renderTeams() {
+    teamList.innerHTML = teams.map(t => `<li>${t}</li>`).join("");
+    renderProjects();
   }
 
-  if (!ADMINS.includes(user.email)) {
-    alert("Not admin");
-    signOut(auth);
-    return;
+  /* PROJECTS */
+  window.addProject = () => {
+    if (!projectName.value) return;
+    projects.push({ name: projectName.value, teams: [] });
+    projectName.value = "";
+    log("Project created");
+    renderProjects();
+  };
+
+  window.assignTeam = () => {
+    const p = projects[projectSelect.selectedIndex];
+    const t = teamSelect.value;
+    if (!p || !t) return;
+    if (!p.teams.includes(t)) {
+      p.teams.push(t);
+      log(`Assigned ${t} to ${p.name}`);
+    }
+    renderProjects();
+  };
+
+  function renderProjects() {
+    projectSelect.innerHTML = projects.map(p => `<option>${p.name}</option>`).join("");
+    teamSelect.innerHTML = teams.map(t => `<option>${t}</option>`).join("");
+
+    projectList.innerHTML = projects.map(p => `
+      <div style="margin:10px 0">
+        <strong>${p.name}</strong>
+        <ul>${p.teams.map(t => `<li>${t}</li>`).join("")}</ul>
+      </div>
+    `).join("");
   }
 
-  loginBox.classList.add("hidden");
-  app.classList.remove("hidden");
-
-  userEmail.innerText = user.email;
-  verifyStatus.innerText = user.emailVerified ? "YES" : "NO";
-  log("Admin logged in");
-});
+  /* LOGS */
+  function log(msg) {
+    logs.unshift(`${new Date().toLocaleTimeString()} — ${msg}`);
+    logList.innerHTML = logs.map(l => `<li>${l}</li>`).join("");
+  }
 </script>
 
 </body>
