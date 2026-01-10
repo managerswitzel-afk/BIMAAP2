@@ -13,6 +13,7 @@ button { background:#2563eb; color:#fff; border:none; cursor:pointer }
 button:hover { background:#1d4ed8 }
 .hidden { display:none }
 nav button { width:auto; margin-right:5px }
+.badge { padding:3px 8px; border-radius:6px; background:#334155 }
 </style>
 </head>
 
@@ -20,9 +21,14 @@ nav button { width:auto; margin-right:5px }
 
 <!-- LOGIN -->
 <div id="loginBox" class="box">
-  <h2>Admin Login</h2>
+  <h2>Login</h2>
   <input id="email" placeholder="Email">
   <input id="password" type="password" placeholder="Password">
+  <select id="roleSelect">
+    <option>Admin</option>
+    <option>Manager</option>
+    <option>Staff</option>
+  </select>
   <button onclick="login()">Login</button>
 </div>
 
@@ -30,9 +36,11 @@ nav button { width:auto; margin-right:5px }
 <div id="app" class="hidden">
 
 <nav class="box">
-  <button onclick="show('teams')">Teams</button>
-  <button onclick="show('projects')">Projects</button>
-  <button onclick="show('tasks')">Tasks</button>
+  Role: <span id="roleBadge" class="badge"></span><br><br>
+
+  <button id="teamsBtn" onclick="show('teams')">Teams</button>
+  <button id="projectsBtn" onclick="show('projects')">Projects</button>
+  <button id="tasksBtn" onclick="show('tasks')">Tasks</button>
   <button onclick="show('logs')">Logs</button>
   <button onclick="logout()">Logout</button>
 </nav>
@@ -50,19 +58,19 @@ nav button { width:auto; margin-right:5px }
   <h3>Projects</h3>
   <input id="projectName" placeholder="Project name">
   <button onclick="addProject()">Create Project</button>
-  <div id="projectList"></div>
+  <ul id="projectList"></ul>
 </div>
 
 <!-- TASKS -->
 <div id="tasks" class="box hidden">
   <h3>Tasks</h3>
 
-  <input id="taskTitle" placeholder="Task title">
-
-  <select id="taskProject"></select>
-  <select id="taskTeam"></select>
-
-  <button onclick="addTask()">Add Task</button>
+  <div id="taskCreate">
+    <input id="taskTitle" placeholder="Task title">
+    <select id="taskProject"></select>
+    <select id="taskTeam"></select>
+    <button onclick="addTask()">Add Task</button>
+  </div>
 
   <div id="taskList"></div>
 </div>
@@ -75,7 +83,6 @@ nav button { width:auto; margin-right:5px }
 
 </div>
 
-<!-- FIREBASE + APP -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
@@ -91,16 +98,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-/* DATA (NO DATABASE) */
+/* DATA */
 const teams = [];
 const projects = [];
 const tasks = [];
 const logs = [];
 
+let currentRole = "Staff";
+
 /* AUTH */
-window.login = () =>
+window.login = () => {
+  currentRole = roleSelect.value;
   signInWithEmailAndPassword(auth, email.value, password.value)
     .catch(e => alert(e.message));
+};
 
 window.logout = () => signOut(auth);
 
@@ -108,13 +119,22 @@ onAuthStateChanged(auth, user => {
   if (user) {
     loginBox.classList.add("hidden");
     app.classList.remove("hidden");
-    show("teams");
-    log("Admin logged in");
+    roleBadge.innerText = currentRole;
+    applyPermissions();
+    show("tasks");
+    log(`${currentRole} logged in`);
   } else {
     loginBox.classList.remove("hidden");
     app.classList.add("hidden");
   }
 });
+
+/* PERMISSIONS */
+function applyPermissions() {
+  teamsBtn.style.display = currentRole === "Admin" ? "inline-block" : "none";
+  projectsBtn.style.display = currentRole !== "Staff" ? "inline-block" : "none";
+  taskCreate.style.display = currentRole === "Staff" ? "none" : "block";
+}
 
 /* NAV */
 window.show = id => {
@@ -125,6 +145,7 @@ window.show = id => {
 
 /* TEAMS */
 window.addTeam = () => {
+  if (currentRole !== "Admin") return alert("Not allowed");
   if (!teamName.value) return;
   teams.push(teamName.value);
   teamName.value = "";
@@ -134,6 +155,7 @@ window.addTeam = () => {
 
 /* PROJECTS */
 window.addProject = () => {
+  if (currentRole === "Staff") return alert("Not allowed");
   if (!projectName.value) return;
   projects.push(projectName.value);
   projectName.value = "";
@@ -143,7 +165,7 @@ window.addProject = () => {
 
 /* TASKS */
 window.addTask = () => {
-  if (!taskTitle.value) return;
+  if (currentRole === "Staff") return alert("Not allowed");
 
   tasks.push({
     title: taskTitle.value,
@@ -152,8 +174,8 @@ window.addTask = () => {
     status: "Pending"
   });
 
-  log("Task created");
   taskTitle.value = "";
+  log("Task created");
   render();
 };
 
@@ -174,10 +196,9 @@ function render() {
   taskList.innerHTML = tasks.map((t,i) => `
     <div class="box">
       <strong>${t.title}</strong><br>
-      Project: ${t.project}<br>
-      Team: ${t.team}<br>
+      ${t.project} | ${t.team}<br>
       Status:
-      <select onchange="updateStatus(${i}, this.value)">
+      <select onchange="updateStatus(${i}, this.value)" ${currentRole==="Staff"?"disabled":""}>
         <option ${t.status==="Pending"?"selected":""}>Pending</option>
         <option ${t.status==="In Progress"?"selected":""}>In Progress</option>
         <option ${t.status==="Done"?"selected":""}>Done</option>
