@@ -1,217 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Switzel Internal Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8" />
+<title>SWITZELINT – BIM Admin Panel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <style>
-body { background:#0f172a; color:#e5e7eb; font-family:Arial; padding:20px }
-.box { background:#020617; padding:15px; border-radius:8px; margin-bottom:15px }
-input, select, button { padding:8px; width:100%; margin:5px 0 }
-button { background:#2563eb; color:#fff; border:none; cursor:pointer }
-button:hover { background:#1d4ed8 }
+body { margin:0; font-family:Arial; background:#f3f4f6 }
 .hidden { display:none }
-nav button { width:auto; margin-right:5px }
-.badge { padding:3px 8px; border-radius:6px; background:#334155 }
+.center { height:100vh; display:flex; align-items:center; justify-content:center }
+.card { background:#fff; padding:20px; width:340px; border-radius:6px }
+input, select, button { width:100%; padding:8px; margin:6px 0 }
+.app { display:flex; height:100vh }
+.sidebar { width:240px; background:#1f2933; color:#fff; padding:20px }
+.sidebar button { margin-top:6px }
+.main { flex:1; padding:20px; overflow:auto }
+h3 { margin-top:0 }
+.log { font-size:12px; color:#555 }
+.badge { background:#2563eb; color:#fff; padding:4px 8px; border-radius:4px; font-size:12px }
 </style>
 </head>
 
 <body>
 
 <!-- LOGIN -->
-<div id="loginBox" class="box">
-  <h2>Login</h2>
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <select id="roleSelect">
-    <option>Admin</option>
-    <option>Manager</option>
-    <option>Staff</option>
-  </select>
-  <button onclick="login()">Login</button>
+<div id="login" class="center">
+  <div class="card">
+    <h2>SWITZELINT</h2>
+    <input id="username" placeholder="Your name" />
+    <select id="role">
+      <option value="Admin">Admin</option>
+      <option value="Staff">Staff</option>
+      <option value="Client">Client</option>
+    </select>
+    <button onclick="login()">Login</button>
+  </div>
 </div>
 
 <!-- APP -->
-<div id="app" class="hidden">
+<div id="app" class="app hidden">
+  <div class="sidebar">
+    <h3>SWITZELINT</h3>
+    <p><span id="userName"></span></p>
+    <p class="badge" id="roleBadge"></p>
 
-<nav class="box">
-  Role: <span id="roleBadge" class="badge"></span><br><br>
+    <button onclick="show('tasks')">Tasks</button>
+    <button onclick="show('projects')">Projects</button>
+    <button onclick="show('teams')">Teams</button>
+    <button onclick="show('logs')">Logs</button>
 
-  <button id="teamsBtn" onclick="show('teams')">Teams</button>
-  <button id="projectsBtn" onclick="show('projects')">Projects</button>
-  <button id="tasksBtn" onclick="show('tasks')">Tasks</button>
-  <button onclick="show('logs')">Logs</button>
-  <button onclick="logout()">Logout</button>
-</nav>
-
-<!-- TEAMS -->
-<div id="teams" class="box hidden">
-  <h3>Teams</h3>
-  <input id="teamName" placeholder="Team name">
-  <button onclick="addTeam()">Add Team</button>
-  <ul id="teamList"></ul>
-</div>
-
-<!-- PROJECTS -->
-<div id="projects" class="box hidden">
-  <h3>Projects</h3>
-  <input id="projectName" placeholder="Project name">
-  <button onclick="addProject()">Create Project</button>
-  <ul id="projectList"></ul>
-</div>
-
-<!-- TASKS -->
-<div id="tasks" class="box hidden">
-  <h3>Tasks</h3>
-
-  <div id="taskCreate">
-    <input id="taskTitle" placeholder="Task title">
-    <select id="taskProject"></select>
-    <select id="taskTeam"></select>
-    <button onclick="addTask()">Add Task</button>
+    <button onclick="logout()">Logout</button>
   </div>
 
-  <div id="taskList"></div>
-</div>
+  <div class="main">
+    <!-- TASKS -->
+    <div id="tasksView">
+      <h2>Tasks</h2>
+      <input id="taskInput" placeholder="New task" />
+      <button onclick="addTask()">Add Task</button>
+      <ul id="taskList"></ul>
+    </div>
 
-<!-- LOGS -->
-<div id="logs" class="box hidden">
-  <h3>Activity Logs</h3>
-  <ul id="logList"></ul>
-</div>
+    <!-- PROJECTS -->
+    <div id="projectsView" class="hidden">
+      <h2>Projects</h2>
+      <input id="projectInput" placeholder="New project" />
+      <button onclick="addProject()">Add Project</button>
+      <ul id="projectList"></ul>
+    </div>
 
+    <!-- TEAMS -->
+    <div id="teamsView" class="hidden">
+      <h2>Teams</h2>
+      <input id="teamInput" placeholder="New team" />
+      <button onclick="addTeam()">Add Team</button>
+      <ul id="teamList"></ul>
+    </div>
+
+    <!-- LOGS -->
+    <div id="logsView" class="hidden">
+      <h2>Activity Log</h2>
+      <ul id="logList"></ul>
+    </div>
+  </div>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-
-/* 🔥 FIREBASE CONFIG */
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "switzelint-53a3f.firebaseapp.com",
-  projectId: "switzelint-53a3f",
-  appId: "YOUR_APP_ID"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-/* DATA */
-const teams = [];
-const projects = [];
-const tasks = [];
-const logs = [];
-
+/* =====================
+   STEP 1–2: STATE
+===================== */
+let currentUser = null;
 let currentRole = "Staff";
 
-/* AUTH */
-window.login = () => {
-  currentRole = roleSelect.value;
-  signInWithEmailAndPassword(auth, email.value, password.value)
-    .catch(e => alert(e.message));
-};
+const tasks = [];
+const projects = [];
+const teams = [];
+const logs = [];
 
-window.logout = () => signOut(auth);
+/* =====================
+   STEP 5: LOCAL STORAGE
+===================== */
+const STORAGE_KEY = "switzelint_offline_v1";
 
-onAuthStateChanged(auth, user => {
-  if (user) {
-    loginBox.classList.add("hidden");
-    app.classList.remove("hidden");
-    roleBadge.innerText = currentRole;
-    applyPermissions();
-    show("tasks");
-    log(`${currentRole} logged in`);
-  } else {
-    loginBox.classList.remove("hidden");
-    app.classList.add("hidden");
-  }
-});
-
-/* PERMISSIONS */
-function applyPermissions() {
-  teamsBtn.style.display = currentRole === "Admin" ? "inline-block" : "none";
-  projectsBtn.style.display = currentRole !== "Staff" ? "inline-block" : "none";
-  taskCreate.style.display = currentRole === "Staff" ? "none" : "block";
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    currentUser,
+    currentRole,
+    tasks,
+    projects,
+    teams,
+    logs
+  }));
 }
 
-/* NAV */
-window.show = id => {
-  ["teams","projects","tasks","logs"].forEach(x =>
-    document.getElementById(x).classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
+function loadData() {
+  const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  if (!data) return;
+
+  currentUser = data.currentUser;
+  currentRole = data.currentRole;
+  tasks.push(...data.tasks);
+  projects.push(...data.projects);
+  teams.push(...data.teams);
+  logs.push(...data.logs);
+}
+
+/* =====================
+   AUTH
+===================== */
+window.login = () => {
+  const name = document.getElementById("username").value;
+  const role = document.getElementById("role").value;
+  if (!name) return alert("Enter name");
+
+  currentUser = name;
+  currentRole = role;
+
+  saveData();
+  startApp();
+  log(`${role} logged in`);
 };
 
-/* TEAMS */
-window.addTeam = () => {
-  if (currentRole !== "Admin") return alert("Not allowed");
-  if (!teamName.value) return;
-  teams.push(teamName.value);
-  teamName.value = "";
-  log("Team added");
+window.logout = () => {
+  saveData();
+  location.reload();
+};
+
+function startApp() {
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("userName").innerText = currentUser;
+  document.getElementById("roleBadge").innerText = currentRole;
   render();
+}
+
+/* =====================
+   UI NAV
+===================== */
+window.show = view => {
+  ["tasks","projects","teams","logs"].forEach(v=>{
+    document.getElementById(v+"View").classList.add("hidden");
+  });
+  document.getElementById(view+"View").classList.remove("hidden");
 };
 
-/* PROJECTS */
-window.addProject = () => {
-  if (currentRole === "Staff") return alert("Not allowed");
-  if (!projectName.value) return;
-  projects.push(projectName.value);
-  projectName.value = "";
-  log("Project created");
-  render();
-};
-
-/* TASKS */
+/* =====================
+   CRUD
+===================== */
 window.addTask = () => {
-  if (currentRole === "Staff") return alert("Not allowed");
+  const val = taskInput.value;
+  if(!val) return;
+  tasks.push({ text: val, done:false });
+  taskInput.value="";
+  log("Task added");
+  saveData();
+  render();
+};
 
-  tasks.push({
-    title: taskTitle.value,
-    project: taskProject.value,
-    team: taskTeam.value,
-    status: "Pending"
+window.addProject = () => {
+  const val = projectInput.value;
+  if(!val) return;
+  projects.push(val);
+  projectInput.value="";
+  log("Project added");
+  saveData();
+  render();
+};
+
+window.addTeam = () => {
+  const val = teamInput.value;
+  if(!val) return;
+  teams.push(val);
+  teamInput.value="";
+  log("Team added");
+  saveData();
+  render();
+};
+
+/* =====================
+   LOGGING
+===================== */
+function log(msg){
+  logs.unshift(new Date().toLocaleString()+" — "+msg);
+  saveData();
+}
+
+/* =====================
+   RENDER
+===================== */
+function render(){
+  taskList.innerHTML="";
+  tasks.forEach((t,i)=>{
+    const li=document.createElement("li");
+    li.innerText=t.text;
+    li.onclick=()=>{
+      t.done=!t.done;
+      li.style.textDecoration=t.done?"line-through":"";
+      saveData();
+    };
+    if(t.done) li.style.textDecoration="line-through";
+    taskList.appendChild(li);
   });
 
-  taskTitle.value = "";
-  log("Task created");
-  render();
-};
-
-window.updateStatus = (i, s) => {
-  tasks[i].status = s;
-  log(`Task marked ${s}`);
-  render();
-};
-
-/* RENDER */
-function render() {
-  teamList.innerHTML = teams.map(t => `<li>${t}</li>`).join("");
-  projectList.innerHTML = projects.map(p => `<li>${p}</li>`).join("");
-
-  taskProject.innerHTML = projects.map(p => `<option>${p}</option>`).join("");
-  taskTeam.innerHTML = teams.map(t => `<option>${t}</option>`).join("");
-
-  taskList.innerHTML = tasks.map((t,i) => `
-    <div class="box">
-      <strong>${t.title}</strong><br>
-      ${t.project} | ${t.team}<br>
-      Status:
-      <select onchange="updateStatus(${i}, this.value)" ${currentRole==="Staff"?"disabled":""}>
-        <option ${t.status==="Pending"?"selected":""}>Pending</option>
-        <option ${t.status==="In Progress"?"selected":""}>In Progress</option>
-        <option ${t.status==="Done"?"selected":""}>Done</option>
-      </select>
-    </div>
-  `).join("");
+  projectList.innerHTML=projects.map(p=>`<li>${p}</li>`).join("");
+  teamList.innerHTML=teams.map(t=>`<li>${t}</li>`).join("");
+  logList.innerHTML=logs.map(l=>`<li class="log">${l}</li>`).join("");
 }
 
-/* LOGS */
-function log(m) {
-  logs.unshift(new Date().toLocaleTimeString()+" — "+m);
-  logList.innerHTML = logs.map(l => `<li>${l}</li>`).join("");
-}
+/* =====================
+   INIT
+===================== */
+loadData();
+if(currentUser) startApp();
 </script>
 
 </body>
