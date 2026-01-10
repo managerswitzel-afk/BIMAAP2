@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT BIM SYSTEM</title>
+<title>SWITZELINT BIM PLATFORM</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body{margin:0;font-family:Arial;background:#f3f4f6}
@@ -10,13 +10,15 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .center{height:100vh;display:flex;align-items:center;justify-content:center}
 .card{background:#fff;padding:20px;width:360px;border-radius:6px}
 input,select,button{width:100%;padding:8px;margin:6px 0}
+button{cursor:pointer}
 .app{display:flex;height:100vh}
 .sidebar{width:240px;background:#1f2933;color:#fff;padding:20px}
+.sidebar button{background:#374151;color:#fff;border:none;margin:4px 0}
 .main{flex:1;padding:20px;overflow:auto}
-.badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px}
-.log{font-size:12px;color:#555}
-.file{border:1px solid #ccc;padding:6px;margin:6px 0;background:#fff}
-button{cursor:pointer}
+.badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px}
+.box{background:#fff;padding:12px;margin:10px 0;border-radius:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.stat{font-size:26px;font-weight:bold}
 </style>
 </head>
 
@@ -27,7 +29,7 @@ button{cursor:pointer}
   <div class="card">
     <h2>SWITZELINT LOGIN</h2>
     <input id="username" placeholder="Username">
-    <input id="password" type="password" placeholder="Password">
+    <input id="password" type="password">
     <select id="role">
       <option>Admin</option>
       <option>Staff</option>
@@ -42,21 +44,42 @@ button{cursor:pointer}
 <div id="app" class="app hidden">
   <div class="sidebar">
     <h3>SWITZELINT</h3>
-    <p id="userName"></p>
+    <p id="userInfo"></p>
     <span class="badge" id="roleBadge"></span>
 
-    <button onclick="showView('tasks')">Tasks</button>
-    <button onclick="showView('projects')">Projects</button>
-    <button onclick="showView('teams')">Teams</button>
-    <button onclick="showView('files')">Files</button>
-    <button onclick="showView('logs')">Logs</button>
+    <button onclick="view('dashboard')">Dashboard</button>
+    <button onclick="view('tasks')">Tasks</button>
+    <button onclick="view('kpi')">KPI</button>
     <button onclick="logout()">Logout</button>
   </div>
 
   <div class="main">
 
+    <!-- DASHBOARD -->
+    <div id="dashboardView">
+      <h2>Project Overview</h2>
+      <div class="grid">
+        <div class="box">
+          <h4>Tasks</h4>
+          <div class="stat" id="taskCount">0</div>
+        </div>
+        <div class="box">
+          <h4>RFIs Open</h4>
+          <div class="stat" id="rfiOpen">0</div>
+        </div>
+        <div class="box">
+          <h4>Clashes Open</h4>
+          <div class="stat" id="clashOpen">0</div>
+        </div>
+        <div class="box">
+          <h4>LOD Complete</h4>
+          <div class="stat" id="lodPercent">0%</div>
+        </div>
+      </div>
+    </div>
+
     <!-- TASKS -->
-    <div id="tasksView">
+    <div id="tasksView" class="hidden">
       <h2>Tasks</h2>
       <div id="taskAdmin">
         <input id="taskInput" placeholder="New task">
@@ -65,8 +88,108 @@ button{cursor:pointer}
       <ul id="taskList"></ul>
     </div>
 
-    <!-- PROJECTS -->
-    <div id="projectsView" class="hidden">
-      <h2>Projects</h2>
-      <div id="projectAdmin">
-        <input id="projectInput"
+    <!-- KPI -->
+    <div id="kpiView" class="hidden">
+      <h2>BIM KPIs</h2>
+
+      <div class="box">
+        <h3>LOD Planner</h3>
+        <input id="lodTotal" type="number" placeholder="Total elements">
+        <input id="lodDone" type="number" placeholder="Completed elements">
+        <button onclick="saveLOD()">Save LOD</button>
+      </div>
+
+      <div class="box">
+        <h3>RFIs</h3>
+        <input id="rfiOpenInput" type="number" placeholder="Open RFIs">
+        <input id="rfiClosedInput" type="number" placeholder="Closed RFIs">
+        <button onclick="saveRFI()">Save RFIs</button>
+      </div>
+
+      <div class="box">
+        <h3>Clashes</h3>
+        <input id="clashOpenInput" type="number" placeholder="Open Clashes">
+        <input id="clashResolvedInput" type="number" placeholder="Resolved Clashes">
+        <button onclick="saveClash()">Save Clashes</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let user=null;
+let tasks=JSON.parse(localStorage.getItem("tasks")||"[]");
+let kpi=JSON.parse(localStorage.getItem("kpi")||"{}");
+
+function login(){
+  const u=username.value,p=password.value,r=role.value;
+  if(!u||!p){msg.innerText="Required";return}
+  user={u,r};
+  localStorage.setItem("user",JSON.stringify(user));
+  start();
+}
+
+function start(){
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  userInfo.innerText=user.u;
+  roleBadge.innerText=user.r;
+  render();
+}
+
+function logout(){
+  localStorage.removeItem("user");
+  location.reload();
+}
+
+function view(v){
+  ["dashboard","tasks","kpi"].forEach(x=>{
+    document.getElementById(x+"View").classList.add("hidden");
+  });
+  document.getElementById(v+"View").classList.remove("hidden");
+}
+
+function addTask(){
+  tasks.push(taskInput.value);
+  taskInput.value="";
+  localStorage.setItem("tasks",JSON.stringify(tasks));
+  render();
+}
+
+function saveLOD(){
+  kpi.lodTotal=+lodTotal.value;
+  kpi.lodDone=+lodDone.value;
+  localStorage.setItem("kpi",JSON.stringify(kpi));
+  render();
+}
+
+function saveRFI(){
+  kpi.rfiOpen=+rfiOpenInput.value;
+  kpi.rfiClosed=+rfiClosedInput.value;
+  localStorage.setItem("kpi",JSON.stringify(kpi));
+  render();
+}
+
+function saveClash(){
+  kpi.clashOpen=+clashOpenInput.value;
+  kpi.clashResolved=+clashResolvedInput.value;
+  localStorage.setItem("kpi",JSON.stringify(kpi));
+  render();
+}
+
+function render(){
+  taskList.innerHTML=tasks.map(t=>`<li>${t}</li>`).join("");
+  taskCount.innerText=tasks.length;
+  rfiOpen.innerText=kpi.rfiOpen||0;
+  clashOpen.innerText=kpi.clashOpen||0;
+  let pct=kpi.lodTotal?Math.round((kpi.lodDone/kpi.lodTotal)*100):0;
+  lodPercent.innerText=pct+"%";
+}
+
+const saved=JSON.parse(localStorage.getItem("user"));
+if(saved){user=saved;start();}
+</script>
+
+</body>
+</html>
