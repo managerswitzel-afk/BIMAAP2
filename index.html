@@ -2,26 +2,24 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT – BIM Admin Panel</title>
+<title>SWITZELINT BIM Admin</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1f2933">
 
 <style>
-body { margin:0; font-family:Arial; background:#f3f4f6 }
-.hidden { display:none }
-.center { height:100vh; display:flex; align-items:center; justify-content:center }
-.card { background:#fff; padding:20px; width:340px; border-radius:6px }
-input, select, button { width:100%; padding:8px; margin:6px 0 }
-.app { display:flex; height:100vh }
-.sidebar { width:240px; background:#1f2933; color:#fff; padding:20px }
-.sidebar button { margin-top:6px }
-.main { flex:1; padding:20px; overflow:auto }
-.badge { background:#2563eb; color:#fff; padding:4px 8px; border-radius:4px }
-.export { background:#16a34a; color:#fff }
-.log { font-size:12px; color:#555 }
+body{margin:0;font-family:Arial;background:#f3f4f6}
+.hidden{display:none}
+.center{height:100vh;display:flex;align-items:center;justify-content:center}
+.card{background:#fff;padding:20px;width:340px;border-radius:6px}
+input,select,button{width:100%;padding:8px;margin:6px 0}
+.app{display:flex;height:100vh}
+.sidebar{width:240px;background:#1f2933;color:#fff;padding:20px}
+.sidebar button{margin-top:6px}
+.main{flex:1;padding:20px;overflow:auto}
+.badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px}
+.export{background:#16a34a;color:#fff}
+.log{font-size:12px;color:#555}
+li{margin:4px 0}
 </style>
 </head>
 
@@ -48,12 +46,12 @@ input, select, button { width:100%; padding:8px; margin:6px 0 }
     <p id="userName"></p>
     <p class="badge" id="roleBadge"></p>
 
-    <button onclick="show('tasks')">Tasks</button>
-    <button onclick="show('projects')">Projects</button>
-    <button onclick="show('teams')">Teams</button>
-    <button onclick="show('logs')">Logs</button>
+    <button onclick="showView('tasks')">Tasks</button>
+    <button onclick="showView('projects')">Projects</button>
+    <button onclick="showView('teams')">Teams</button>
+    <button onclick="showView('logs')">Logs</button>
 
-    <button class="export" onclick="exportExcel()">⬇ Export Excel</button>
+    <button class="export" onclick="exportExcel()">⬇ Export</button>
     <button onclick="logout()">Logout</button>
   </div>
 
@@ -61,22 +59,28 @@ input, select, button { width:100%; padding:8px; margin:6px 0 }
 
     <div id="tasksView">
       <h2>Tasks</h2>
-      <input id="taskInput" placeholder="New task">
-      <button onclick="addTask()">Add Task</button>
+      <div id="taskAdmin">
+        <input id="taskInput" placeholder="New task">
+        <button onclick="addTask()">Add Task</button>
+      </div>
       <ul id="taskList"></ul>
     </div>
 
     <div id="projectsView" class="hidden">
       <h2>Projects</h2>
-      <input id="projectInput" placeholder="New project">
-      <button onclick="addProject()">Add Project</button>
+      <div id="projectAdmin">
+        <input id="projectInput" placeholder="New project">
+        <button onclick="addProject()">Add Project</button>
+      </div>
       <ul id="projectList"></ul>
     </div>
 
     <div id="teamsView" class="hidden">
       <h2>Teams</h2>
-      <input id="teamInput" placeholder="New team">
-      <button onclick="addTeam()">Add Team</button>
+      <div id="teamAdmin">
+        <input id="teamInput" placeholder="New team">
+        <button onclick="addTeam()">Add Team</button>
+      </div>
       <ul id="teamList"></ul>
     </div>
 
@@ -88,10 +92,163 @@ input, select, button { width:100%; padding:8px; margin:6px 0 }
   </div>
 </div>
 
-<script type="module">
+<script>
 /* =====================
-   STATE
+   DATABASE (LOCAL)
 ===================== */
-let currentUser=null;
-let currentRole="Staff";
-const
+const db={
+  tasks:JSON.parse(localStorage.getItem("tasks")||"[]"),
+  projects:JSON.parse(localStorage.getItem("projects")||"[]"),
+  teams:JSON.parse(localStorage.getItem("teams")||"[]"),
+  logs:JSON.parse(localStorage.getItem("logs")||"[]")
+};
+let currentUser=null,currentRole="";
+
+/* =====================
+   AUTH
+===================== */
+function login(){
+  currentUser=username.value;
+  currentRole=role.value;
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  userName.innerText="User: "+currentUser;
+  roleBadge.innerText=currentRole;
+  applyRoleRules();
+  log("Logged in");
+  renderAll();
+}
+
+function logout(){
+  location.reload();
+}
+
+/* =====================
+   ROLE RULES
+===================== */
+function applyRoleRules(){
+  if(currentRole==="Client"){
+    taskAdmin.style.display="none";
+    projectAdmin.style.display="none";
+    teamAdmin.style.display="none";
+  }
+  if(currentRole==="Staff"){
+    teamAdmin.style.display="none";
+  }
+}
+
+/* =====================
+   NAVIGATION
+===================== */
+function showView(v){
+  ["tasks","projects","teams","logs"].forEach(x=>{
+    document.getElementById(x+"View").classList.add("hidden");
+  });
+  document.getElementById(v+"View").classList.remove("hidden");
+}
+
+/* =====================
+   TASKS
+===================== */
+function addTask(){
+  db.tasks.push({text:taskInput.value});
+  taskInput.value="";
+  save();
+  log("Task added");
+  renderTasks();
+}
+function renderTasks(){
+  taskList.innerHTML="";
+  db.tasks.forEach(t=>{
+    const li=document.createElement("li");
+    li.textContent=t.text;
+    taskList.appendChild(li);
+  });
+}
+
+/* =====================
+   PROJECTS
+===================== */
+function addProject(){
+  db.projects.push({text:projectInput.value});
+  projectInput.value="";
+  save();
+  log("Project added");
+  renderProjects();
+}
+function renderProjects(){
+  projectList.innerHTML="";
+  db.projects.forEach(p=>{
+    const li=document.createElement("li");
+    li.textContent=p.text;
+    projectList.appendChild(li);
+  });
+}
+
+/* =====================
+   TEAMS
+===================== */
+function addTeam(){
+  db.teams.push({text:teamInput.value});
+  teamInput.value="";
+  save();
+  log("Team added");
+  renderTeams();
+}
+function renderTeams(){
+  teamList.innerHTML="";
+  db.teams.forEach(t=>{
+    const li=document.createElement("li");
+    li.textContent=t.text;
+    teamList.appendChild(li);
+  });
+}
+
+/* =====================
+   LOGS
+===================== */
+function log(text){
+  db.logs.unshift(new Date().toLocaleString()+" – "+currentUser+" – "+text);
+  save();
+  renderLogs();
+}
+function renderLogs(){
+  logList.innerHTML="";
+  db.logs.forEach(l=>{
+    const li=document.createElement("li");
+    li.className="log";
+    li.textContent=l;
+    logList.appendChild(li);
+  });
+}
+
+/* =====================
+   EXPORT
+===================== */
+function exportExcel(){
+  let csv="Tasks\n"+db.tasks.map(t=>t.text).join("\n");
+  const a=document.createElement("a");
+  a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+  a.download="switzelint_data.csv";
+  a.click();
+}
+
+/* =====================
+   STORAGE
+===================== */
+function save(){
+  localStorage.setItem("tasks",JSON.stringify(db.tasks));
+  localStorage.setItem("projects",JSON.stringify(db.projects));
+  localStorage.setItem("teams",JSON.stringify(db.teams));
+  localStorage.setItem("logs",JSON.stringify(db.logs));
+}
+function renderAll(){
+  renderTasks();
+  renderProjects();
+  renderTeams();
+  renderLogs();
+}
+</script>
+
+</body>
+</html>
