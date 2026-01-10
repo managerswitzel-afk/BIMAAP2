@@ -5,7 +5,7 @@
 <title>SWITZELINT – BIM Cloud Platform</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Firebase COMPAT SDKs (REQUIRED FOR GITHUB PAGES) -->
+<!-- Firebase COMPAT SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -24,7 +24,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
 
 <body>
 
-<!-- LOGIN SCREEN -->
+<!-- LOGIN -->
 <div id="login" class="center">
   <div class="card">
     <h2>SWITZELINT</h2>
@@ -40,7 +40,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- APP -->
 <div id="app" class="app hidden">
   <div class="sidebar">
     <h3>SWITZELINT</h3>
@@ -50,7 +50,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
   <div class="main">
     <h2>Welcome to SWITZELINT</h2>
     <p>Firebase Authentication is working.</p>
-    <p>This is where your BIM Project Management system will load next.</p>
+    <p>Your BIM system will load here next.</p>
   </div>
 </div>
 
@@ -67,23 +67,23 @@ const firebaseConfig = {
 
 /* ================= INITIALIZE FIREBASE ================= */
 firebase.initializeApp(firebaseConfig);
-
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* ================= LOGIN ================= */
+/* ================= LOGIN FUNCTION ================= */
 function loginUser(){
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
   const role = document.getElementById("role").value;
+  const msg = document.getElementById("loginMsg");
 
   if(!email || !password){
-    loginMsg.innerText = "Email and password required";
+    msg.innerText = "Email and password required";
     return;
   }
 
   if(password.length < 6){
-    loginMsg.innerText = "Password must be at least 6 characters";
+    msg.innerText = "Password must be at least 6 characters";
     return;
   }
 
@@ -95,4 +95,29 @@ function loginUser(){
         email: email,
         role: role,
         organization: "SWITZELINT",
-        createdAt: firebase.firestore
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    })
+    .catch(err => msg.innerText = err.message);
+}
+
+/* ================= LOGOUT ================= */
+function logoutUser(){
+  auth.signOut();
+}
+
+/* ================= AUTH STATE ================= */
+auth.onAuthStateChanged(user => {
+  if(user){
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    document.getElementById("userInfo").innerText = user.email;
+  } else {
+    document.getElementById("login").classList.remove("hidden");
+    document.getElementById("app").classList.add("hidden");
+  }
+});
+</script>
+
+</body>
+</html>
