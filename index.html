@@ -2,27 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Switzel Admin Panel</title>
+<title>Switzel Admin Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <style>
 body {
+  margin:0;
   font-family: Arial, sans-serif;
   background:#020617;
   color:#e5e7eb;
+}
+.hidden { display:none; }
+
+/* Layout */
+.app {
+  display:flex;
+  height:100vh;
+}
+.sidebar {
+  width:220px;
+  background:#020617;
+  border-right:1px solid #1e293b;
+  padding:15px;
+}
+.sidebar h2 {
+  margin-bottom:20px;
+}
+.sidebar button {
+  width:100%;
+  margin-bottom:10px;
+  padding:10px;
+  background:#0f172a;
+  border:none;
+  color:white;
+  cursor:pointer;
+  border-radius:6px;
+}
+.sidebar button:hover {
+  background:#1e293b;
+}
+.main {
+  flex:1;
+  padding:25px;
+}
+
+/* Login */
+.login {
   display:flex;
   justify-content:center;
   align-items:center;
   height:100vh;
-  margin:0;
 }
-.box {
-  background:#020617;
+.login-box {
+  width:330px;
   border:1px solid #1e293b;
   padding:25px;
   border-radius:10px;
-  width:330px;
 }
-input,button {
+input, button {
   width:100%;
   padding:10px;
   margin-top:10px;
@@ -30,34 +67,75 @@ input,button {
   border:none;
 }
 input { background:#0f172a; color:white; }
-button { background:#2563eb; color:white; cursor:pointer; }
-button:hover { background:#1d4ed8; }
-.hidden { display:none; }
-.logout { background:#dc2626; }
-.small { font-size:12px; color:#94a3b8; text-align:center; }
+button.primary { background:#2563eb; color:white; }
+button.danger { background:#dc2626; color:white; }
+.small { font-size:12px; color:#94a3b8; }
 </style>
 </head>
+
 <body>
 
 <!-- LOGIN -->
-<div class="box" id="loginBox">
-  <h2>Admin Login</h2>
-  <input id="email" type="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Password">
-  <button onclick="login()">Login</button>
-  <button onclick="register()">Register</button>
-  <button onclick="resetPassword()">Forgot Password</button>
-  <p class="small">Admin access only</p>
+<div class="login" id="loginBox">
+  <div class="login-box">
+    <h2>Admin Login</h2>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button class="primary" onclick="login()">Login</button>
+    <button onclick="register()">Register</button>
+    <button onclick="resetPassword()">Forgot Password</button>
+    <p class="small">Admin access only</p>
+  </div>
 </div>
 
-<!-- DASHBOARD -->
-<div class="box hidden" id="dashboard">
-  <h2>Admin Dashboard</h2>
-  <p id="userEmail"></p>
-  <p>Status: <strong>ADMIN</strong></p>
-  <p id="verifyMsg"></p>
-  <button onclick="sendVerification()">Verify Email</button>
-  <button class="logout" onclick="logout()">Logout</button>
+<!-- APP -->
+<div class="app hidden" id="app">
+  <div class="sidebar">
+    <h2>Admin</h2>
+    <button onclick="showPage('overview')">Overview</button>
+    <button onclick="showPage('projects')">Projects</button>
+    <button onclick="showPage('teams')">Teams</button>
+    <button onclick="showPage('logs')">Activity Logs</button>
+    <button onclick="showPage('settings')">Settings</button>
+    <button class="danger" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="main">
+    <!-- OVERVIEW -->
+    <div id="overview">
+      <h1>Dashboard</h1>
+      <p>Welcome, <strong id="userEmail"></strong></p>
+      <p>Status: <strong>ADMIN</strong></p>
+    </div>
+
+    <!-- PROJECTS -->
+    <div id="projects" class="hidden">
+      <h1>Projects</h1>
+      <p>No database connected.</p>
+      <p>This section is ready for future upgrade.</p>
+    </div>
+
+    <!-- TEAMS -->
+    <div id="teams" class="hidden">
+      <h1>Teams</h1>
+      <ul id="teamList"></ul>
+      <input id="teamInput" placeholder="Add team name">
+      <button onclick="addTeam()">Add Team</button>
+    </div>
+
+    <!-- LOGS -->
+    <div id="logs" class="hidden">
+      <h1>Activity Logs</h1>
+      <ul id="logList"></ul>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settings" class="hidden">
+      <h1>Settings</h1>
+      <p>Email verified: <span id="verifyStatus"></span></p>
+      <button onclick="sendVerification()">Send Verification</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -72,13 +150,13 @@ import {
   signOut
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-/* 🔐 ADMIN EMAILS (NO DB, NO BILLING) */
+/* ADMIN EMAILS */
 const ADMINS = [
   "managerswitzel@gmail.com",
   "asad.syed@switzelint.com"
 ];
 
-/* 🔥 FIREBASE CONFIG */
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
   authDomain: "switzelint-53a3f.firebaseapp.com",
@@ -86,77 +164,81 @@ const firebaseConfig = {
   appId: "1:349606864096:web:e695676bb4b5c6c5271c85"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const appFirebase = initializeApp(firebaseConfig);
+const auth = getAuth(appFirebase);
 
-/* 🔑 LOGIN */
+/* STATE */
+const teams = [];
+const logs = [];
+
+function log(msg) {
+  logs.push(msg);
+  logList.innerHTML = logs.map(l => `<li>${l}</li>`).join("");
+}
+
+/* NAV */
+window.showPage = id => {
+  document.querySelectorAll(".main > div").forEach(d => d.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+};
+
+/* AUTH */
 window.login = async () => {
   try {
-    await signInWithEmailAndPassword(
-      auth,
-      email.value,
-      password.value
-    );
-  } catch (e) {
-    alert(e.message);
-  }
+    await signInWithEmailAndPassword(auth, email.value, password.value);
+  } catch (e) { alert(e.message); }
 };
 
-/* 🆕 REGISTER */
 window.register = async () => {
   try {
-    await createUserWithEmailAndPassword(
-      auth,
-      email.value,
-      password.value
-    );
-    alert("Registered. Verify your email.");
-  } catch (e) {
-    alert(e.message);
-  }
+    await createUserWithEmailAndPassword(auth, email.value, password.value);
+    alert("Registered. Verify email.");
+  } catch (e) { alert(e.message); }
 };
 
-/* 🔁 RESET PASSWORD */
 window.resetPassword = async () => {
-  if (!email.value) return alert("Enter email first");
   await sendPasswordResetEmail(auth, email.value);
-  alert("Password reset email sent");
+  alert("Reset email sent");
 };
 
-/* 📧 VERIFY EMAIL */
-window.sendVerification = async () => {
-  await sendEmailVerification(auth.currentUser);
-  alert("Verification email sent");
-};
-
-/* 🚪 LOGOUT */
 window.logout = () => signOut(auth);
 
-/* 🔄 AUTH STATE */
+window.sendVerification = async () => {
+  await sendEmailVerification(auth.currentUser);
+  alert("Verification sent");
+};
+
+/* TEAMS */
+window.addTeam = () => {
+  if (!teamInput.value) return;
+  teams.push(teamInput.value);
+  teamList.innerHTML = teams.map(t => `<li>${t}</li>`).join("");
+  log("Team added: " + teamInput.value);
+  teamInput.value = "";
+};
+
+/* AUTH STATE */
 onAuthStateChanged(auth, user => {
   if (!user) {
     loginBox.classList.remove("hidden");
-    dashboard.classList.add("hidden");
+    app.classList.add("hidden");
     return;
   }
 
-  /* ❌ BLOCK NON-ADMINS */
   if (!ADMINS.includes(user.email)) {
-    alert("Access denied: Not admin");
+    alert("Not admin");
     signOut(auth);
     return;
   }
 
   loginBox.classList.add("hidden");
-  dashboard.classList.remove("hidden");
-  userEmail.innerText = user.email;
+  app.classList.remove("hidden");
 
-  verifyMsg.innerText = user.emailVerified
-    ? "Email verified ✅"
-    : "Email not verified ❌";
+  userEmail.innerText = user.email;
+  verifyStatus.innerText = user.emailVerified ? "YES" : "NO";
+  log("Admin logged in");
 });
 </script>
 
 </body>
 </html>
-
