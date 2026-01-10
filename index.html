@@ -5,7 +5,7 @@
 <title>SWITZELINT – BIM Cloud Platform</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Firebase SDKs -->
+<!-- Firebase COMPAT SDKs (NO IMPORTS) -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -35,7 +35,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
       <option>Team Member</option>
       <option>Client</option>
     </select>
-    <button onclick="login()">Login / Register</button>
+    <button onclick="loginUser()">Login / Register</button>
     <p id="loginMsg" style="color:red;font-size:12px"></p>
   </div>
 </div>
@@ -45,7 +45,7 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
   <div class="sidebar">
     <h3>SWITZELINT</h3>
     <p id="userInfo"></p>
-    <button onclick="logout()">Logout</button>
+    <button onclick="logoutUser()">Logout</button>
   </div>
   <div class="main">
     <h2>Welcome to SWITZELINT</h2>
@@ -55,61 +55,60 @@ input,select,button{width:100%;padding:8px;margin:6px 0}
 </div>
 
 <script>
-/* 🔧 REPLACE ONLY THIS CONFIG WITH YOUR FIREBASE VALUES */
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+/* 🔧 REPLACE ONLY VALUES BELOW */
 const firebaseConfig = {
-  apiKey: "AIzaSyAYfk1EuidLP0PG0XPqOvHZUcJxitwtYOE",
-  authDomain: "switzelint-53a3f.firebaseapp.com",
-  projectId: "switzelint-53a3f",
-  storageBucket: "switzelint-53a3f.firebasestorage.app",
-  messagingSenderId: "349606864096",
-  appId: "1:349606864096:web:e695676bb4b5c6c5271c85",
-  measurementId: "G-ZL7ZENE8PL"
+  apiKey: "PASTE_YOUR_API_KEY",
+  authDomain: "PASTE_YOUR_AUTH_DOMAIN",
+  projectId: "PASTE_YOUR_PROJECT_ID",
+  storageBucket: "PASTE_YOUR_STORAGE_BUCKET",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-/* 🔧 STOP REPLACING HERE */
+/* 🔧 STOP */
 
 firebase.initializeApp(firebaseConfig);
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* AUTH LOGIC */
-function login(){
-  const email=email.value;
-  const password=password.value;
-  const role=role.value;
+/* LOGIN */
+function loginUser(){
+  const emailVal = document.getElementById("email").value;
+  const passVal = document.getElementById("password").value;
+  const roleVal = document.getElementById("role").value;
 
-  auth.signInWithEmailAndPassword(email,password)
-  .catch(()=>auth.createUserWithEmailAndPassword(email,password))
-  .then(cred=>{
+  if(!emailVal || !passVal){
+    loginMsg.innerText = "Email and password required";
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(emailVal, passVal)
+  .catch(() => auth.createUserWithEmailAndPassword(emailVal, passVal))
+  .then(cred => {
     if(!cred) return;
-    db.collection("users").doc(cred.user.uid).set({
-      email,role,org:"SWITZELINT"
+    return db.collection("users").doc(cred.user.uid).set({
+      email: emailVal,
+      role: roleVal,
+      organization: "SWITZELINT"
     });
   })
-  .catch(e=>loginMsg.innerText=e.message);
+  .catch(err => loginMsg.innerText = err.message);
 }
 
-function logout(){ auth.signOut(); }
+/* LOGOUT */
+function logoutUser(){
+  auth.signOut();
+}
 
-auth.onAuthStateChanged(user=>{
+/* STATE */
+auth.onAuthStateChanged(user => {
   if(user){
-    login.classList.add("hidden");
-    app.classList.remove("hidden");
-    userInfo.innerText=user.email;
-  }else{
-    login.classList.remove("hidden");
-    app.classList.add("hidden");
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    document.getElementById("userInfo").innerText = user.email;
+  } else {
+    document.getElementById("login").classList.remove("hidden");
+    document.getElementById("app").classList.add("hidden");
   }
 });
 </script>
