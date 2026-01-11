@@ -17,17 +17,14 @@ button{cursor:pointer}
 .main{flex:1;padding:20px;overflow:auto}
 .badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px}
 .box{background:#fff;padding:12px;margin:10px 0;border-radius:6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.kpi{background:#1d4ed8;color:#fff;padding:14px;border-radius:6px}
-.kpi span{font-size:26px;font-weight:bold}
 table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px;text-align:center}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
 .status{font-weight:bold}
-.Approved{color:#16a34a}
-.Submitted{color:#2563eb}
-.InProgress{color:#f59e0b}
-.NotStarted{color:#6b7280}
+.Accepted{color:#16a34a}
+.Reviewed{color:#2563eb}
+.Uploaded{color:#f59e0b}
+.NotUploaded{color:#6b7280}
 </style>
 </head>
 
@@ -63,106 +60,28 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
     </div>
 
     <hr>
-    <button onclick="view('dashboard')">📊 Dashboard</button>
-    <button onclick="view('issues')">📌 Issues</button>
-    <button onclick="view('documents')">📄 Documents</button>
-    <button onclick="view('transmittals')">📤 Transmittals</button>
-    <button onclick="view('raci')">🧩 RACI</button>
     <button onclick="view('idm')">🧱 IDM Stages</button>
+    <button onclick="view('eir')">📘 EIR</button>
     <button onclick="view('audit')">🧾 Audit</button>
     <button onclick="logout()">Logout</button>
   </div>
 
   <div class="main">
 
-<!-- DASHBOARD -->
-<div id="dashboardView">
-<h2>ISO 19650 Dashboard</h2>
-<div class="grid" id="kpiGrid"></div>
-</div>
-
 <!-- IDM -->
-<div id="idmView" class="hidden">
+<div id="idmView">
 <h2>Information Delivery Milestones</h2>
 <table>
-<thead>
-<tr><th>Stage</th><th>Status</th><th>Action</th></tr>
-</thead>
+<tr><th>Stage</th><th>Status</th></tr>
 <tbody id="idmTable"></tbody>
 </table>
 </div>
 
-<!-- AUDIT -->
-<div id="auditView" class="hidden">
-<h2>Audit Log</h2>
-<div id="auditLog"></div>
-</div>
+<!-- EIR -->
+<div id="eirView" class="hidden">
+<h2>Exchange Information Requirements</h2>
 
-</div>
-</div>
-
-<script>
-let user={},db=JSON.parse(localStorage.getItem("switzelint"))||{projects:{}},current=null;
-const stages=["Stage 0 Strategic","Stage 1 Brief","Stage 2 Concept","Stage 3 Coordination","Stage 4 Technical","Stage 5 Construction","Stage 6 Handover"];
-const statuses=["Not Started","In Progress","Submitted","Approved"];
-
-function save(){localStorage.setItem("switzelint",JSON.stringify(db))}
-function log(m){db.projects[current].audit.push(new Date().toISOString()+" — "+m);save();renderAudit()}
-
-function login(){
-user.name=username.value;user.role=role.value;
-if(!db.projects.Main){
-db.projects.Main={audit:[],idm:{}};
-stages.forEach(s=>db.projects.Main.idm[s]="Not Started");
-}
-login.hidden=true;app.classList.remove("hidden");
-userInfo.innerText=user.name;roleBadge.innerText=user.role;
-loadProjects();
-}
-
-function logout(){location.reload()}
-function loadProjects(){
-projectSelect.innerHTML="";
-Object.keys(db.projects).forEach(p=>projectSelect.add(new Option(p,p)));
-current=projectSelect.value;renderAll();
-}
-
-function addProject(){
-db.projects[newProject.value]={audit:[],idm:{}};
-stages.forEach(s=>db.projects[newProject.value].idm[s]="Not Started");
-save();loadProjects();
-}
-
-function switchProject(){current=projectSelect.value;renderAll()}
-function view(v){
-["dashboard","idm","audit"].forEach(x=>document.getElementById(x+"View").classList.add("hidden"));
-document.getElementById(v+"View").classList.remove("hidden");
-}
-
-function setStage(stage,status){
-db.projects[current].idm[stage]=status;
-log(stage+" set to "+status);
-renderIDM();
-}
-
-function renderIDM(){
-idmTable.innerHTML="";
-Object.entries(db.projects[current].idm).forEach(([s,st])=>{
-idmTable.innerHTML+=`<tr>
-<td>${s}</td>
-<td class="${st.replace(" ","")}">${st}</td>
-<td>${user.role==="Admin"?statuses.map(x=>`<button onclick="setStage('${s}','${x}')">${x}</button>`).join(""):""}</td>
-</tr>`;
-});
-}
-
-function renderAudit(){
-auditLog.innerHTML="";
-db.projects[current].audit.forEach(a=>auditLog.innerHTML+=`<div class="log">${a}</div>`);
-}
-
-function renderAll(){renderIDM();renderAudit()}
-</script>
-
-</body>
-</html>
+<div class="box" id="eirAdmin">
+<h4>Add Deliverable (Admin)</h4>
+<select id="eirStage"></select>
+<input
