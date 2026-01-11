@@ -28,6 +28,7 @@ table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
 .error{color:#dc2626;font-size:13px}
+.superseded{opacity:0.5}
 small{color:#6b7280}
 </style>
 </head>
@@ -73,18 +74,7 @@ small{color:#6b7280}
     <!-- DASHBOARD -->
     <div id="dashboardView">
       <h2>ISO 19650 KPI Dashboard</h2>
-
       <div class="grid" id="kpiGrid"></div>
-
-      <div class="box">
-        <h4>Files per User</h4>
-        <div id="filesPerUser"></div>
-      </div>
-
-      <div class="box">
-        <h4>Last Activity</h4>
-        <div id="lastActivity"></div>
-      </div>
     </div>
 
     <!-- FILES -->
@@ -108,7 +98,15 @@ small{color:#6b7280}
 
       <table>
         <thead>
-          <tr><th>Name</th><th>Stage</th><th>User</th><th>Date</th><th>Action</th></tr>
+          <tr>
+            <th>Name</th>
+            <th>Stage</th>
+            <th>Revision</th>
+            <th>Status</th>
+            <th>User</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
         </thead>
         <tbody id="fileTable"></tbody>
       </table>
@@ -137,27 +135,19 @@ function log(action){
 
 function login(){user={u:username.value};localStorage.setItem("user",JSON.stringify(user));start()}
 function start(){loginDiv();loadProjects()}
-function loginDiv(){
-  login.classList.add("hidden");
-  app.classList.remove("hidden");
-  userInfo.innerText=user.u;
-}
-
+function loginDiv(){login.classList.add("hidden");app.classList.remove("hidden");userInfo.innerText=user.u}
 function logout(){localStorage.clear();location.reload()}
 
 function addProject(){
   db[newProject.value]={files:[],audit:[],team:{[user.u]:"Admin"}};
-  project=newProject.value;
-  log("Project created");
-  save();loadProjects();
+  project=newProject.value;log("Project created");save();loadProjects();
 }
 
 function loadProjects(){
   projectSelect.innerHTML="";
   Object.keys(db).forEach(p=>projectSelect.add(new Option(p,p)));
   project=project||Object.keys(db)[0];
-  projectSelect.value=project;
-  render();
+  projectSelect.value=project;render();
 }
 
 function switchProject(){project=projectSelect.value;render()}
@@ -175,30 +165,41 @@ function validateISO(name){
   return null;
 }
 
+function baseName(name){
+  const p=name.split("-");
+  p.pop();
+  return p.join("-");
+}
+
+function revision(name){return name.split("-").pop().split(".")[0]}
+
 function uploadFile(){
-  if(role()==="Client") return;
-  const f=fileInput.files[0]; if(!f) return;
-  const err=validateISO(f.name.toUpperCase());
+  if(role()==="Client")return;
+  const f=fileInput.files[0]; if(!f)return;
+  const name=f.name.toUpperCase();
+  const err=validateISO(name);
   if(err){nameError.innerText=err;return;}
-  if(role()==="Staff"&&fileStage.value==="PUBLISHED")return alert("Admin only");
+
+  const base=baseName(name);
+  db[project].files.forEach(x=>{
+    if(baseName(x.name)===base){x.superseded=true}
+  });
 
   const r=new FileReader();
   r.onload=()=>{
     db[project].files.push({
-      name:f.name.toUpperCase(),
-      stage:fileStage.value,
-      user:user.u,
+      name,stage:fileStage.value,user:user.u,
       date:new Date().toLocaleString(),
-      data:r.result
+      data:r.result,superseded:false
     });
-    log("Uploaded "+f.name);
+    log("Uploaded revision "+revision(name));
     save();render();
   };
   r.readAsDataURL(f);
 }
 
 function exportProject(){
-  if(role()!=="Admin") return;
+  if(role()!=="Admin")return;
   const zip=new JSZip();
   const root=zip.folder(project);
   const files=root.folder("files");
@@ -206,9 +207,6 @@ function exportProject(){
     files.file(f.name,f.data.split(",")[1],{base64:true});
   });
   root.file("audit-log.json",JSON.stringify(db[project].audit,null,2));
-  root.file("project-info.json",JSON.stringify({
-    project,exportedBy:user.u,date:new Date().toISOString()
-  },null,2));
   zip.generateAsync({type:"blob"}).then(b=>saveAs(b,project+"_ISO_EXPORT.zip"));
 }
 
@@ -219,11 +217,21 @@ function render(){
   projectTitle.innerText=project;
 
   const files=db[project].files;
-  const visible=files.filter(f=>role()!=="Client"||f.stage!=="WIP");
+  const visible=files.filter(f=>{
+    if(role()==="Client") return !f.superseded && f.stage!=="WIP";
+    return true;
+  });
 
   fileTable.innerHTML=visible.map(f=>`
-    <tr><td>${f.name}</td><td>${f.stage}</td><td>${f.user}</td><td>${f.date}</td>
-    <td><a href="${f.data}" download>Download</a></td></tr>`).join("");
+    <tr class="${f.superseded?'superseded':''}">
+      <td>${f.name}</td>
+      <td>${f.stage}</td>
+      <td>${revision(f.name)}</td>
+      <td>${f.superseded?"Superseded":"Current"}</td>
+      <td>${f.user}</td>
+      <td>${f.date}</td>
+      <td><a href="${f.data}" download>Download</a></td>
+    </tr>`).join("");
 
   auditList.innerHTML=db[project].audit.map(a=>`
     <div class="log"><b>${a.user}</b> — ${a.action}<br><small>${a.time}</small></div>`).join("");
@@ -232,27 +240,14 @@ function render(){
 }
 
 function renderKPIs(){
-  const files=db[project].files;
+  const files=db[project].files.filter(f=>!f.superseded);
   const total=files.length;
-  const wip=files.filter(f=>f.stage==="WIP").length;
-  const shared=files.filter(f=>f.stage==="SHARED").length;
   const pub=files.filter(f=>f.stage==="PUBLISHED").length;
-  const pct=total?Math.round(pub/total*100):0;
-
   kpiGrid.innerHTML=`
-    <div class="kpi"><small>Total Files</small><span>${total}</span></div>
-    <div class="kpi"><small>WIP</small><span>${wip}</span></div>
-    <div class="kpi"><small>Shared</small><span>${shared}</span></div>
+    <div class="kpi"><small>Active Files</small><span>${total}</span></div>
     <div class="kpi"><small>Published</small><span>${pub}</span></div>
-    <div class="kpi"><small>% Published</small><span>${pct}%</span></div>
+    <div class="kpi"><small>Maturity</small><span>${total?Math.round(pub/total*100):0}%</span></div>
   `;
-
-  const perUser={};
-  files.forEach(f=>perUser[f.user]=(perUser[f.user]||0)+1);
-  filesPerUser.innerHTML=Object.entries(perUser)
-    .map(([u,c])=>`<div>${u}: ${c}</div>`).join("");
-
-  lastActivity.innerText=db[project].audit[0]?.time||"No activity";
 }
 
 const saved=JSON.parse(localStorage.getItem("user"));
