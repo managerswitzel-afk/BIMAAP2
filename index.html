@@ -6,77 +6,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-:root{
-  --dark:#0b1d3a;
-  --light:#f4f6f9;
-  --card:#ffffff;
-  --accent:#2563eb;
-}
-body{
-  margin:0;
-  font-family:Segoe UI, Arial;
-  background:var(--light);
-}
-header{
-  background:var(--dark);
-  color:#fff;
-  padding:14px 20px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-button{
-  padding:6px 12px;
-  border:none;
-  background:var(--accent);
-  color:#fff;
-  border-radius:4px;
-  cursor:pointer;
-}
-button.small{font-size:12px;padding:4px 8px}
-input,select{
-  padding:6px;
-  width:100%;
-  margin-bottom:6px;
-}
-.container{padding:20px}
+body{margin:0;font-family:Segoe UI;background:#f4f6f9}
+header{background:#0b1d3a;color:#fff;padding:14px 20px;display:flex;justify-content:space-between}
+button{background:#2563eb;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer}
+input,select{width:100%;padding:6px;margin-bottom:6px}
 .hidden{display:none}
-
-.grid{
-  display:grid;
-  grid-template-columns:260px 1fr;
-  gap:20px;
-}
-
-.card{
-  background:var(--card);
-  padding:12px;
-  border-radius:6px;
-  box-shadow:0 1px 3px rgba(0,0,0,.1);
-}
-
-ul{padding-left:16px}
-li{margin-bottom:6px}
-
-.board{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-}
-.column{
-  background:#eef1f6;
-  padding:10px;
-  border-radius:6px;
-}
-.task{
-  background:#fff;
-  padding:8px;
-  margin-bottom:6px;
-  border-radius:4px;
-  font-size:13px;
-  box-shadow:0 1px 2px rgba(0,0,0,.1);
-}
-.task small{color:#666}
+.container{padding:20px}
+.grid{display:grid;grid-template-columns:260px 1fr;gap:20px}
+.card{background:#fff;padding:12px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+h4{margin-top:0}
+ul{padding-left:18px}
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.column{background:#eef1f6;padding:10px;border-radius:6px}
+.task{background:#fff;padding:8px;margin-bottom:6px;border-radius:4px;font-size:13px}
+small{color:#555}
+.log{font-size:12px;border-bottom:1px solid #ddd;padding:4px 0}
 </style>
 </head>
 
@@ -91,7 +35,7 @@ li{margin-bottom:6px}
 
 <!-- LOGIN -->
 <div id="login">
-  <div class="card" style="max-width:300px;margin:auto">
+  <div class="card" style="max-width:320px;margin:auto">
     <h3>Admin Login</h3>
     <input id="user" placeholder="Username">
     <input id="pass" type="password" placeholder="Password">
@@ -102,104 +46,125 @@ li{margin-bottom:6px}
 <!-- APP -->
 <div id="app" class="hidden">
 
-  <div class="grid">
+<div class="grid">
 
-    <!-- PROJECT LIST -->
-    <div class="card">
-      <h4>Projects</h4>
-      <ul id="projectList"></ul>
-    </div>
+<!-- LEFT -->
+<div class="card">
+<h4>Projects</h4>
+<ul id="projectList"></ul>
 
-    <!-- PROJECT DETAILS -->
-    <div class="card">
-      <h3 id="projectTitle"></h3>
+<h4>User Role</h4>
+<select id="role" onchange="log('Role switched to '+this.value)">
+  <option>Admin</option>
+  <option>BIM Manager</option>
+  <option>Team Member</option>
+</select>
 
-      <h4>Teams</h4>
-      <ul id="teamList"></ul>
+<h4>Audit Log</h4>
+<div id="audit"></div>
+</div>
 
-      <h4>Sprints</h4>
-      <ul id="sprintList"></ul>
+<!-- RIGHT -->
+<div class="card">
+<h2 id="projectTitle"></h2>
 
-      <h4>Kanban Board</h4>
-      <div class="board">
-        <div class="column"><h5>To Do</h5><div id="todo"></div></div>
-        <div class="column"><h5>Doing</h5><div id="doing"></div></div>
-        <div class="column"><h5>Done</h5><div id="done"></div></div>
-      </div>
-    </div>
+<h4>Teams</h4>
+<ul id="teamList"></ul>
 
-  </div>
+<h4>Sprints</h4>
+<ul id="sprintList"></ul>
+
+<h4>Kanban Board</h4>
+<div class="board">
+<div class="column"><h5>To Do</h5><div id="todo"></div></div>
+<div class="column"><h5>Doing</h5><div id="doing"></div></div>
+<div class="column"><h5>Done</h5><div id="done"></div></div>
+</div>
+
+<h4>ISO 19650 CDE</h4>
+<ul>
+<li><strong>WIP</strong>: Arch_Model_v1.rvt</li>
+<li><strong>SHARED</strong>: Coord_Model_v2.nwd</li>
+<li><strong>PUBLISHED</strong>: IFC_Final.ifc</li>
+<li><strong>ARCHIVED</strong>: Old_Models.zip</li>
+</ul>
+
+</div>
+
+</div>
 </div>
 
 <script>
 /* ================= DATA ================= */
-const data = {
-  projects:[
-    {
-      name:"PR1 – Office Tower BIM",
-      teams:["Architecture","Structure","MEP"],
-      sprints:["Design","Coordination","Construction"],
-      tasks:[
-        {name:"Architectural Model LOD 300",team:"Architecture",status:"todo"},
-        {name:"Structural Clash Review",team:"Structure",status:"doing"},
-        {name:"MEP Coordination",team:"MEP",status:"done"}
-      ]
-    },
-    {
-      name:"PR2 – Hospital CDE",
-      teams:["BIM Mgmt","Client","Contractor"],
-      sprints:["EIR","Tender","Execution"],
-      tasks:[
-        {name:"EIR Validation",team:"Client",status:"done"},
-        {name:"BEP Approval",team:"BIM Mgmt",status:"doing"},
-        {name:"Site Model Sync",team:"Contractor",status:"todo"}
-      ]
-    }
-  ]
+const data={
+projects:[
+{
+name:"PR1 – Office Tower BIM",
+teams:["Architecture","Structure","MEP"],
+sprints:["Design","Coordination","Construction"],
+tasks:[
+{name:"Architectural Model LOD 300",team:"Architecture",status:"todo"},
+{name:"Structural Clash Review",team:"Structure",status:"doing"},
+{name:"MEP Coordination",team:"MEP",status:"done"}
+]
+},
+{
+name:"PR2 – Hospital CDE",
+teams:["BIM Mgmt","Client","Contractor"],
+sprints:["EIR","Tender","Execution"],
+tasks:[
+{name:"EIR Validation",team:"Client",status:"done"},
+{name:"BEP Approval",team:"BIM Mgmt",status:"doing"},
+{name:"Site Model Sync",team:"Contractor",status:"todo"}
+]
+}
+]
 };
 
-let currentProject = null;
+let currentProject=null;
 
 /* ================= AUTH ================= */
 function login(){
-  if(user.value==="Admin" && pass.value==="Admin"){
-    loginDiv.style.display="none";
-    app.classList.remove("hidden");
-    renderProjects();
-    selectProject(0);
-  } else alert("Wrong credentials");
+if(user.value==="Admin" && pass.value==="Admin"){
+loginDiv.style.display="none";
+app.classList.remove("hidden");
+renderProjects();
+selectProject(0);
+log("Admin logged in");
+}else alert("Wrong credentials");
 }
-function logout(){ location.reload(); }
+function logout(){location.reload();}
 
 /* ================= UI ================= */
 function renderProjects(){
-  projectList.innerHTML="";
-  data.projects.forEach((p,i)=>{
-    projectList.innerHTML+=`<li><button class="small" onclick="selectProject(${i})">${p.name}</button></li>`;
-  });
+projectList.innerHTML="";
+data.projects.forEach((p,i)=>{
+projectList.innerHTML+=`<li><button onclick="selectProject(${i})">${p.name}</button></li>`;
+});
 }
 
 function selectProject(i){
-  currentProject=data.projects[i];
-  projectTitle.innerText=currentProject.name;
-
-  teamList.innerHTML="";
-  currentProject.teams.forEach(t=>teamList.innerHTML+=`<li>${t}</li>`);
-
-  sprintList.innerHTML="";
-  currentProject.sprints.forEach(s=>sprintList.innerHTML+=`<li>${s}</li>`);
-
-  renderTasks();
+currentProject=data.projects[i];
+projectTitle.innerText=currentProject.name;
+teamList.innerHTML="";
+currentProject.teams.forEach(t=>teamList.innerHTML+=`<li>${t}</li>`);
+sprintList.innerHTML="";
+currentProject.sprints.forEach(s=>sprintList.innerHTML+=`<li>${s}</li>`);
+renderTasks();
+log("Opened project "+currentProject.name);
 }
 
 function renderTasks(){
-  todo.innerHTML=doing.innerHTML=done.innerHTML="";
-  currentProject.tasks.forEach(t=>{
-    const el=`<div class="task">
-      ${t.name}<br><small>${t.team}</small>
-    </div>`;
-    document.getElementById(t.status).innerHTML+=el;
-  });
+todo.innerHTML=doing.innerHTML=done.innerHTML="";
+currentProject.tasks.forEach(t=>{
+document.getElementById(t.status).innerHTML+=
+`<div class="task">${t.name}<br><small>${t.team}</small></div>`;
+});
+}
+
+/* ================= AUDIT ================= */
+function log(msg){
+audit.innerHTML=`<div class="log">${new Date().toLocaleTimeString()} – ${msg}</div>`+audit.innerHTML;
 }
 
 /* ================= INIT ================= */
