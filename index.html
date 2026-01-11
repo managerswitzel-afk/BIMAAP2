@@ -1,24 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>SWITZELINT CDE</title>
-  <style>
-    body { font-family: Arial; margin: 0; background: #f4f6f8; }
-    header { background: #0a1e3f; color: white; padding: 10px 20px; }
-    nav button { margin-right: 10px; }
-    .container { padding: 20px; }
-    .hidden { display: none; }
-    .board { display: flex; gap: 10px; }
-    .column { background: #fff; padding: 10px; width: 33%; border-radius: 6px; }
-    .task { background: #e3e7ee; padding: 8px; margin-bottom: 6px; border-radius: 4px; }
-  </style>
+<meta charset="UTF-8">
+<title>SWITZELINT CDE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root{
+  --dark:#0b1d3a;
+  --light:#f4f6f9;
+  --card:#ffffff;
+  --accent:#2563eb;
+}
+body{
+  margin:0;
+  font-family:Segoe UI, Arial;
+  background:var(--light);
+}
+header{
+  background:var(--dark);
+  color:#fff;
+  padding:14px 20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+button{
+  padding:6px 12px;
+  border:none;
+  background:var(--accent);
+  color:#fff;
+  border-radius:4px;
+  cursor:pointer;
+}
+button.small{font-size:12px;padding:4px 8px}
+input,select{
+  padding:6px;
+  width:100%;
+  margin-bottom:6px;
+}
+.container{padding:20px}
+.hidden{display:none}
+
+.grid{
+  display:grid;
+  grid-template-columns:260px 1fr;
+  gap:20px;
+}
+
+.card{
+  background:var(--card);
+  padding:12px;
+  border-radius:6px;
+  box-shadow:0 1px 3px rgba(0,0,0,.1);
+}
+
+ul{padding-left:16px}
+li{margin-bottom:6px}
+
+.board{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.column{
+  background:#eef1f6;
+  padding:10px;
+  border-radius:6px;
+}
+.task{
+  background:#fff;
+  padding:8px;
+  margin-bottom:6px;
+  border-radius:4px;
+  font-size:13px;
+  box-shadow:0 1px 2px rgba(0,0,0,.1);
+}
+.task small{color:#666}
+</style>
 </head>
 
 <body>
 
 <header>
-  <h2>SWITZELINT CDE</h2>
+  <strong>SWITZELINT CDE</strong>
   <button onclick="logout()">Logout</button>
 </header>
 
@@ -26,158 +91,120 @@
 
 <!-- LOGIN -->
 <div id="login">
-  <h3>Admin Login</h3>
-  <input id="user" placeholder="Username"><br><br>
-  <input id="pass" type="password" placeholder="Password"><br><br>
-  <button onclick="login()">Login</button>
+  <div class="card" style="max-width:300px;margin:auto">
+    <h3>Admin Login</h3>
+    <input id="user" placeholder="Username">
+    <input id="pass" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+  </div>
 </div>
 
 <!-- APP -->
 <div id="app" class="hidden">
 
-  <h3>Projects</h3>
-  <input id="projectName" placeholder="New Project Name">
-  <button onclick="addProject()">Add Project</button>
-  <ul id="projectList"></ul>
+  <div class="grid">
 
-  <hr>
+    <!-- PROJECT LIST -->
+    <div class="card">
+      <h4>Projects</h4>
+      <ul id="projectList"></ul>
+    </div>
 
-  <div id="projectArea" class="hidden">
+    <!-- PROJECT DETAILS -->
+    <div class="card">
+      <h3 id="projectTitle"></h3>
 
-    <h3 id="currentProject"></h3>
+      <h4>Teams</h4>
+      <ul id="teamList"></ul>
 
-    <!-- TEAMS -->
-    <h4>Teams</h4>
-    <input id="teamName" placeholder="Team Name">
-    <button onclick="addTeam()">Add Team</button>
-    <ul id="teamList"></ul>
+      <h4>Sprints</h4>
+      <ul id="sprintList"></ul>
 
-    <hr>
-
-    <!-- SPRINT -->
-    <h4>Sprint</h4>
-    <input id="sprintName" placeholder="Sprint Name">
-    <button onclick="addSprint()">Add Sprint</button>
-    <ul id="sprintList"></ul>
-
-    <hr>
-
-    <!-- TASK -->
-    <h4>Add Task</h4>
-    <input id="taskName" placeholder="Task Name">
-    <select id="taskTeam"></select>
-    <button onclick="addTask()">Add Task</button>
-
-    <h4>Kanban Board</h4>
-    <div class="board">
-      <div class="column"><h5>To Do</h5><div id="todo"></div></div>
-      <div class="column"><h5>Doing</h5><div id="doing"></div></div>
-      <div class="column"><h5>Done</h5><div id="done"></div></div>
+      <h4>Kanban Board</h4>
+      <div class="board">
+        <div class="column"><h5>To Do</h5><div id="todo"></div></div>
+        <div class="column"><h5>Doing</h5><div id="doing"></div></div>
+        <div class="column"><h5>Done</h5><div id="done"></div></div>
+      </div>
     </div>
 
   </div>
 </div>
 
 <script>
-/* ---------- AUTH ---------- */
-function login() {
-  if (user.value === "Admin" && pass.value === "Admin") {
-    loginDiv.style.display = "none";
-    app.classList.remove("hidden");
-    load();
-  } else alert("Wrong login");
-}
+/* ================= DATA ================= */
+const data = {
+  projects:[
+    {
+      name:"PR1 – Office Tower BIM",
+      teams:["Architecture","Structure","MEP"],
+      sprints:["Design","Coordination","Construction"],
+      tasks:[
+        {name:"Architectural Model LOD 300",team:"Architecture",status:"todo"},
+        {name:"Structural Clash Review",team:"Structure",status:"doing"},
+        {name:"MEP Coordination",team:"MEP",status:"done"}
+      ]
+    },
+    {
+      name:"PR2 – Hospital CDE",
+      teams:["BIM Mgmt","Client","Contractor"],
+      sprints:["EIR","Tender","Execution"],
+      tasks:[
+        {name:"EIR Validation",team:"Client",status:"done"},
+        {name:"BEP Approval",team:"BIM Mgmt",status:"doing"},
+        {name:"Site Model Sync",team:"Contractor",status:"todo"}
+      ]
+    }
+  ]
+};
 
-function logout() {
-  location.reload();
-}
-
-/* ---------- DATA ---------- */
-let data = JSON.parse(localStorage.getItem("switzelint")) || { projects: [] };
 let currentProject = null;
 
-function save() {
-  localStorage.setItem("switzelint", JSON.stringify(data));
+/* ================= AUTH ================= */
+function login(){
+  if(user.value==="Admin" && pass.value==="Admin"){
+    loginDiv.style.display="none";
+    app.classList.remove("hidden");
+    renderProjects();
+    selectProject(0);
+  } else alert("Wrong credentials");
 }
+function logout(){ location.reload(); }
 
-/* ---------- PROJECTS ---------- */
-function addProject() {
-  data.projects.push({ name: projectName.value, teams: [], tasks: [], sprints: [] });
-  projectName.value = "";
-  save(); renderProjects();
-}
-
-function selectProject(i) {
-  currentProject = data.projects[i];
-  projectArea.classList.remove("hidden");
-  currentProjectEl.innerText = currentProject.name;
-  renderTeams(); renderTasks(); renderSprints();
-}
-
-function renderProjects() {
-  projectList.innerHTML = "";
-  data.projects.forEach((p, i) => {
-    projectList.innerHTML += `<li><button onclick="selectProject(${i})">${p.name}</button></li>`;
+/* ================= UI ================= */
+function renderProjects(){
+  projectList.innerHTML="";
+  data.projects.forEach((p,i)=>{
+    projectList.innerHTML+=`<li><button class="small" onclick="selectProject(${i})">${p.name}</button></li>`;
   });
 }
 
-/* ---------- TEAMS ---------- */
-function addTeam() {
-  currentProject.teams.push(teamName.value);
-  teamName.value = "";
-  save(); renderTeams();
+function selectProject(i){
+  currentProject=data.projects[i];
+  projectTitle.innerText=currentProject.name;
+
+  teamList.innerHTML="";
+  currentProject.teams.forEach(t=>teamList.innerHTML+=`<li>${t}</li>`);
+
+  sprintList.innerHTML="";
+  currentProject.sprints.forEach(s=>sprintList.innerHTML+=`<li>${s}</li>`);
+
+  renderTasks();
 }
 
-function renderTeams() {
-  teamList.innerHTML = "";
-  taskTeam.innerHTML = "";
-  currentProject.teams.forEach(t => {
-    teamList.innerHTML += `<li>${t}</li>`;
-    taskTeam.innerHTML += `<option>${t}</option>`;
+function renderTasks(){
+  todo.innerHTML=doing.innerHTML=done.innerHTML="";
+  currentProject.tasks.forEach(t=>{
+    const el=`<div class="task">
+      ${t.name}<br><small>${t.team}</small>
+    </div>`;
+    document.getElementById(t.status).innerHTML+=el;
   });
 }
 
-/* ---------- SPRINT ---------- */
-function addSprint() {
-  currentProject.sprints.push(sprintName.value);
-  sprintName.value = "";
-  save(); renderSprints();
-}
-
-function renderSprints() {
-  sprintList.innerHTML = "";
-  currentProject.sprints.forEach(s => sprintList.innerHTML += `<li>${s}</li>`);
-}
-
-/* ---------- TASKS ---------- */
-function addTask() {
-  currentProject.tasks.push({ name: taskName.value, team: taskTeam.value, status: "todo" });
-  taskName.value = "";
-  save(); renderTasks();
-}
-
-function moveTask(i, status) {
-  currentProject.tasks[i].status = status;
-  save(); renderTasks();
-}
-
-function renderTasks() {
-  todo.innerHTML = doing.innerHTML = done.innerHTML = "";
-  currentProject.tasks.forEach((t, i) => {
-    let html = `<div class="task">${t.name}<br><small>${t.team}</small><br>
-      <button onclick="moveTask(${i},'todo')">ToDo</button>
-      <button onclick="moveTask(${i},'doing')">Doing</button>
-      <button onclick="moveTask(${i},'done')">Done</button></div>`;
-    document.getElementById(t.status).innerHTML += html;
-  });
-}
-
-/* ---------- INIT ---------- */
-function load() { renderProjects(); }
-
-const loginDiv = document.getElementById("login");
-const app = document.getElementById("app");
-const currentProjectEl = document.getElementById("currentProject");
+/* ================= INIT ================= */
+const loginDiv=document.getElementById("login");
+const app=document.getElementById("app");
 </script>
 
 </body>
