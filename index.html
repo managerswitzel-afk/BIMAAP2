@@ -49,6 +49,7 @@ a{color:#2563eb;text-decoration:none}
     <hr>
 
     <select id="projectSelect" onchange="switchProject()"></select>
+
     <div id="projectAdmin">
       <input id="newProject" placeholder="New Project Name">
       <button onclick="addProject()">Add Project</button>
@@ -60,6 +61,7 @@ a{color:#2563eb;text-decoration:none}
     <button onclick="view('tasks')">Tasks</button>
     <button onclick="view('documents')">ISO Docs</button>
     <button onclick="view('files')">Files</button>
+    <button onclick="view('team')">Team</button>
     <button onclick="view('audit')">Audit Log</button>
     <button onclick="logout()">Logout</button>
   </div>
@@ -87,7 +89,7 @@ a{color:#2563eb;text-decoration:none}
 
     <!-- DOCUMENTS -->
     <div id="documentsView" class="hidden">
-      <h2>ISO 19650 Documents</h2>
+      <h2>ISO Documents</h2>
       <input id="docName" placeholder="Document Name">
       <select id="docStatus"><option>WIP</option><option>SHARED</option><option>PUBLISHED</option></select>
       <button onclick="addDocument()">Save Document</button>
@@ -122,6 +124,19 @@ a{color:#2563eb;text-decoration:none}
       </table>
     </div>
 
+    <!-- TEAM -->
+    <div id="teamView" class="hidden">
+      <h2>Project Team</h2>
+      <input id="teamUser" placeholder="Username">
+      <select id="teamRole">
+        <option>Admin</option>
+        <option>Staff</option>
+        <option>Client</option>
+      </select>
+      <button onclick="addTeam()">Add / Update</button>
+      <ul id="teamList"></ul>
+    </div>
+
     <!-- AUDIT -->
     <div id="auditView" class="hidden">
       <h2>Audit Log</h2>
@@ -139,9 +154,10 @@ let stageFilter="WIP";
 
 function save(){localStorage.setItem("switzel",JSON.stringify(db))}
 function log(action){
-  db[project].audit.unshift({user:user.u,action,time:new Date().toLocaleString()});
+  db[project].audit.unshift({user:user.u,role:role(),action,time:new Date().toLocaleString()});
   save();
 }
+function role(){return db[project].team[user.u]||"Client"}
 
 function login(){
   user={u:username.value};
@@ -177,22 +193,22 @@ function loadProjects(){
 }
 
 function switchProject(){project=projectSelect.value;render()}
-function role(){return db[project].team[user.u]||"Client"}
-
 function view(v){
-  ["dashboard","tasks","documents","files","audit"].forEach(x=>{
+  ["dashboard","tasks","documents","files","team","audit"].forEach(x=>{
     document.getElementById(x+"View").classList.add("hidden");
   });
   document.getElementById(v+"View").classList.remove("hidden");
 }
 
 function addTask(){
+  if(role()==="Client")return alert("Read-only");
   db[project].tasks.push(taskInput.value);
   log("Task added");
   taskInput.value="";save();render();
 }
 
 function addDocument(){
+  if(role()==="Client")return alert("Read-only");
   db[project].docs.push({name:docName.value,status:docStatus.value});
   log("Document "+docStatus.value+": "+docName.value);
   save();render();
@@ -201,46 +217,58 @@ function addDocument(){
 function setStage(s){stageFilter=s;render()}
 
 function uploadFile(){
+  if(role()==="Client")return alert("No permission");
+  if(role()==="Staff" && fileStage.value==="PUBLISHED")
+    return alert("Only Admin can publish");
+
   const f=fileInput.files[0];
   if(!f)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
+  const r=new FileReader();
+  r.onload=()=>{
     db[project].files.push({
-      name:f.name,
-      stage:fileStage.value,
-      data:reader.result,
-      user:user.u,
+      name:f.name,stage:fileStage.value,
+      data:r.result,user:user.u,
       date:new Date().toLocaleString()
     });
-    log("File uploaded ["+fileStage.value+"]: "+f.name);
+    log("File uploaded ["+fileStage.value+"] "+f.name);
     save();render();
   };
-  reader.readAsDataURL(f);
+  r.readAsDataURL(f);
+}
+
+function addTeam(){
+  if(role()!=="Admin")return alert("Admin only");
+  db[project].team[teamUser.value]=teamRole.value;
+  log("Role set: "+teamUser.value+" → "+teamRole.value);
+  save();render();
 }
 
 function render(){
   projectTitle.innerText=project;
   roleBadge.innerText=role();
+  projectAdmin.classList.toggle("hidden",role()!=="Admin");
+  fileAdmin.classList.toggle("hidden",role()==="Client");
 
   taskList.innerHTML=db[project].tasks.map(t=>`<li>${t}</li>`).join("");
   docList.innerHTML=db[project].docs.map(d=>`<li>${d.name} (${d.status})</li>`).join("");
+  teamList.innerHTML=Object.entries(db[project].team)
+    .map(([u,r])=>`<li>${u} — ${r}</li>`).join("");
 
-  let visibleFiles=db[project].files.filter(f=>{
+  let files=db[project].files.filter(f=>{
     if(role()==="Client") return f.stage!=="WIP";
     return f.stage===stageFilter;
   });
 
-  fileTable.innerHTML=visibleFiles.map(f=>`
+  fileTable.innerHTML=files.map(f=>`
     <tr>
-      <td>${f.name}</td>
-      <td>${f.stage}</td>
-      <td>${f.user}</td>
-      <td>${f.date}</td>
-      <td><a href="${f.data}" download="${f.name}">Download</a></td>
+      <td>${f.name}</td><td>${f.stage}</td>
+      <td>${f.user}</td><td>${f.date}</td>
+      <td><a href="${f.data}" download>Download</a></td>
     </tr>`).join("");
 
   auditList.innerHTML=db[project].audit.map(a=>`
-    <div class="log"><b>${a.user}</b> — ${a.action}<br><small>${a.time}</small></div>`).join("");
+    <div class="log"><b>${a.user}</b> (${a.role}) — ${a.action}
+    <br><small>${a.time}</small></div>`).join("");
 
   taskCount.innerText=db[project].tasks.length;
   docCount.innerText=db[project].docs.length;
