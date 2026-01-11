@@ -20,11 +20,10 @@ button{cursor:pointer}
 table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px;text-align:center}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
-.status{font-weight:bold}
-.Accepted{color:#16a34a}
-.Reviewed{color:#2563eb}
-.Uploaded{color:#f59e0b}
-.NotUploaded{color:#6b7280}
+.Accepted{color:#16a34a;font-weight:bold}
+.Reviewed{color:#2563eb;font-weight:bold}
+.Uploaded{color:#f59e0b;font-weight:bold}
+.NotUploaded{color:#6b7280;font-weight:bold}
 </style>
 </head>
 
@@ -33,7 +32,7 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
 <!-- LOGIN -->
 <div id="login" class="center">
   <div class="card">
-    <h2>SWITZELINT</h2>
+    <h2>SWITZELINT CDE</h2>
     <input id="username" placeholder="Username">
     <select id="role">
       <option>Admin</option>
@@ -60,7 +59,7 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
     </div>
 
     <hr>
-    <button onclick="view('idm')">🧱 IDM Stages</button>
+    <button onclick="view('idm')">🧱 IDM</button>
     <button onclick="view('eir')">📘 EIR</button>
     <button onclick="view('audit')">🧾 Audit</button>
     <button onclick="logout()">Logout</button>
@@ -70,7 +69,7 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
 
 <!-- IDM -->
 <div id="idmView">
-<h2>Information Delivery Milestones</h2>
+<h2>IDM Stages</h2>
 <table>
 <tr><th>Stage</th><th>Status</th></tr>
 <tbody id="idmTable"></tbody>
@@ -84,4 +83,31 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
 <div class="box" id="eirAdmin">
 <h4>Add Deliverable (Admin)</h4>
 <select id="eirStage"></select>
-<input
+<input id="eirName" placeholder="Deliverable Name">
+<input id="eirDiscipline" placeholder="Discipline (ARC/STR/MEP)">
+<input id="eirFormat" placeholder="Format (PDF/IFC/RVT)">
+<input id="eirResp" placeholder="Responsible Party">
+<button onclick="addDeliverable()">Add Deliverable</button>
+</div>
+
+<table>
+<tr>
+<th>Stage</th><th>Name</th><th>Discipline</th>
+<th>Format</th><th>Responsible</th>
+<th>Status</th><th>Action</th>
+</tr>
+<tbody id="eirTable"></tbody>
+</table>
+</div>
+
+<!-- AUDIT -->
+<div id="auditView" class="hidden">
+<h2>Audit Trail</h2>
+<div id="auditLog"></div>
+</div>
+
+  </div>
+</div>
+
+<script>
+let user={},data=JSON.parse(localStorage.getItem("cde
