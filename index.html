@@ -2,11 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>SWITZELINT ISO 19650 CDE</title>
+<title>SWITZELINT | ISO 19650 CDE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
 <style>
 body{margin:0;font-family:Arial;background:#f3f4f6}
@@ -27,13 +24,14 @@ button{cursor:pointer}
 table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
-.error{color:#dc2626;font-size:13px}
-.issue-open{color:#dc2626;font-weight:bold}
-.issue-closed{color:#16a34a;font-weight:bold}
-.issue-answered{color:#2563eb;font-weight:bold}
-.approved{color:#16a34a;font-weight:bold}
-.rejected{color:#dc2626;font-weight:bold}
-.pending{color:#f59e0b;font-weight:bold}
+.status{font-weight:bold}
+.S0{color:#6b7280}
+.S1{color:#2563eb}
+.S2{color:#16a34a}
+.S3{color:#f59e0b}
+.S4{color:#dc2626}
+.A{color:#16a34a}
+.B{color:#0f172a}
 </style>
 </head>
 
@@ -42,14 +40,14 @@ td,th{border:1px solid #ddd;padding:6px}
 <!-- LOGIN -->
 <div id="login" class="center">
   <div class="card">
-    <h2>SWITZELINT LOGIN</h2>
+    <h2>SWITZELINT</h2>
     <input id="username" placeholder="Username">
     <select id="role">
       <option>Admin</option>
       <option>Staff</option>
       <option>Client</option>
     </select>
-    <button onclick="login()">Login / Register</button>
+    <button onclick="login()">Login</button>
   </div>
 </div>
 
@@ -71,167 +69,176 @@ td,th{border:1px solid #ddd;padding:6px}
     <hr>
     <button onclick="view('dashboard')">📊 Dashboard</button>
     <button onclick="view('issues')">📌 Issues / RFIs</button>
+    <button onclick="view('documents')">📄 Documents</button>
     <button onclick="view('transmittals')">📤 Transmittals</button>
-    <button onclick="view('audit')">🧾 Audit Log</button>
-    <button onclick="exportProject()">⬇ Export</button>
+    <button onclick="view('audit')">🧾 Audit</button>
     <button onclick="logout()">Logout</button>
   </div>
 
   <div class="main">
 
-    <!-- DASHBOARD -->
-    <div id="dashboardView">
-      <h2>ISO 19650 KPI Dashboard</h2>
-      <div class="grid" id="kpiGrid"></div>
-    </div>
+<!-- DASHBOARD -->
+<div id="dashboardView">
+<h2>ISO 19650 Dashboard</h2>
+<div class="grid" id="kpiGrid"></div>
+</div>
 
-    <!-- ISSUES -->
-    <div id="issuesView" class="hidden">
-      <h2>Issues / RFIs</h2>
-      <div class="box">
-        <input id="issueTitle" placeholder="Issue / RFI title">
-        <select id="issueType"><option>Issue</option><option>RFI</option></select>
-        <select id="issuePriority"><option>Low</option><option>Medium</option><option>High</option></select>
-        <button onclick="addIssue()">Raise</button>
-      </div>
-      <div id="issueList"></div>
-    </div>
+<!-- ISSUES -->
+<div id="issuesView" class="hidden">
+<h2>Issues / RFIs</h2>
+<div class="box">
+<input id="issueTitle" placeholder="Title">
+<button onclick="addIssue()">Add</button>
+</div>
+<div id="issueList"></div>
+</div>
 
-    <!-- TRANSMITTALS -->
-    <div id="transmittalsView" class="hidden">
-      <h2>Transmittals</h2>
+<!-- DOCUMENTS -->
+<div id="documentsView" class="hidden">
+<h2>Documents (ISO 19650)</h2>
 
-      <div class="box" id="transmittalAdmin">
-        <input id="trPurpose" placeholder="Purpose (S0, S1, S2...)">
-        <input id="trRecipient" placeholder="Recipient">
-        <button onclick="createTransmittal()">Create Transmittal</button>
-      </div>
+<div class="box" id="docAdmin">
+<input id="docName" placeholder="Document Name">
+<select id="docStatus">
+<option>S0</option><option>S1</option><option>S2</option>
+<option>S3</option><option>S4</option><option>A</option><option>B</option>
+</select>
+<select id="docSuitability">
+<option>WIP</option>
+<option>SHARED</option>
+<option>PUBLISHED</option>
+<option>ARCHIVED</option>
+</select>
+<button onclick="addDocument()">Register Document</button>
+</div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Purpose</th>
-            <th>Recipient</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="transmittalTable"></tbody>
-      </table>
-    </div>
+<table>
+<thead>
+<tr><th>Name</th><th>Status</th><th>Suitability</th><th>Action</th></tr>
+</thead>
+<tbody id="docTable"></tbody>
+</table>
+</div>
 
-    <!-- AUDIT -->
-    <div id="auditView" class="hidden">
-      <h2>Audit Log</h2>
-      <div id="auditLog"></div>
-    </div>
+<!-- TRANSMITTALS -->
+<div id="transmittalsView" class="hidden">
+<h2>Transmittals</h2>
+<div class="box" id="trAdmin">
+<input id="trPurpose" placeholder="Purpose (S1,S2,S3...)">
+<input id="trRecipient" placeholder="Recipient">
+<button onclick="addTransmittal()">Create</button>
+</div>
+<table>
+<thead>
+<tr><th>ID</th><th>Purpose</th><th>Recipient</th><th>Status</th><th>Action</th></tr>
+</thead>
+<tbody id="trTable"></tbody>
+</table>
+</div>
 
-  </div>
+<!-- AUDIT -->
+<div id="auditView" class="hidden">
+<h2>Audit Log</h2>
+<div id="auditLog"></div>
+</div>
+
+</div>
 </div>
 
 <script>
-let user={}, data=JSON.parse(localStorage.getItem("switzelint"))||{projects:{}}, currentProject=null;
-
-function save(){localStorage.setItem("switzelint",JSON.stringify(data))}
-function log(msg){data.projects[currentProject].audit.push(new Date().toISOString()+" – "+msg);save();renderAudit()}
+let user={},db=JSON.parse(localStorage.getItem("switzelint"))||{projects:{}},current=null;
+function save(){localStorage.setItem("switzelint",JSON.stringify(db))}
+function log(m){db.projects[current].audit.push(new Date().toISOString()+" — "+m);save();renderAudit()}
 
 function login(){
-  user.name=username.value;
-  user.role=role.value;
-  if(!data.projects.default){
-    data.projects.default={issues:[],transmittals:[],audit:[]}
-  }
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-  userInfo.innerText=user.name;
-  roleBadge.innerText=user.role;
-  loadProjects();
+user.name=username.value;user.role=role.value;
+if(!db.projects.Main){db.projects.Main={issues:[],docs:[],trs:[],audit:[]}}
+loginDiv.hidden=true;app.classList.remove("hidden");
+userInfo.innerText=user.name;roleBadge.innerText=user.role;
+loadProjects();
 }
 
 function logout(){location.reload()}
-
 function loadProjects(){
-  projectSelect.innerHTML="";
-  Object.keys(data.projects).forEach(p=>{
-    let o=document.createElement("option");o.text=p;o.value=p;projectSelect.add(o)
-  })
-  currentProject=projectSelect.value;
-  renderAll();
+projectSelect.innerHTML="";
+Object.keys(db.projects).forEach(p=>projectSelect.add(new Option(p,p)));
+current=projectSelect.value;renderAll();
 }
 
 function addProject(){
-  data.projects[newProject.value]={issues:[],transmittals:[],audit:[]};
-  save();loadProjects();
+db.projects[newProject.value]={issues:[],docs:[],trs:[],audit:[]};
+save();loadProjects();
 }
 
-function switchProject(){currentProject=projectSelect.value;renderAll()}
-
+function switchProject(){current=projectSelect.value;renderAll()}
 function view(v){
-  ["dashboard","issues","transmittals","audit"].forEach(x=>document.getElementById(x+"View").classList.add("hidden"));
-  document.getElementById(v+"View").classList.remove("hidden");
+["dashboard","issues","documents","transmittals","audit"].forEach(x=>document.getElementById(x+"View").classList.add("hidden"));
+document.getElementById(v+"View").classList.remove("hidden");
 }
 
 function addIssue(){
-  let p=data.projects[currentProject];
-  p.issues.push({title:issueTitle.value,type:issueType.value,priority:issuePriority.value,status:"Open"});
-  log("Issue created");
-  renderIssues();
+db.projects[current].issues.push({t:issueTitle.value});
+log("Issue created");renderIssues();
+}
+
+function addDocument(){
+db.projects[current].docs.push({
+n:docName.value,
+s:docStatus.value,
+u:docSuitability.value
+});
+log("Document registered");renderDocs();
+}
+
+function addTransmittal(){
+db.projects[current].trs.push({
+id:"TR-"+(db.projects[current].trs.length+1),
+p:trPurpose.value,
+r:trRecipient.value,
+st:"Pending"
+});
+log("Transmittal issued");renderTr();
+}
+
+function approveTr(i){
+db.projects[current].trs[i].st="Approved";
+log("Transmittal approved");renderTr();
 }
 
 function renderIssues(){
-  let d=data.projects[currentProject];
-  issueList.innerHTML="";
-  d.issues.forEach(i=>{
-    issueList.innerHTML+=`<div class="box">${i.title} — <span class="issue-open">${i.status}</span></div>`;
-  })
+issueList.innerHTML="";
+db.projects[current].issues.forEach(i=>issueList.innerHTML+=`<div class="box">${i.t}</div>`);
 }
 
-function createTransmittal(){
-  let p=data.projects[currentProject];
-  p.transmittals.push({
-    id:"TR-"+(p.transmittals.length+1),
-    purpose:trPurpose.value,
-    recipient:trRecipient.value,
-    status:"Pending"
-  });
-  log("Transmittal issued");
-  renderTransmittals();
+function renderDocs(){
+docTable.innerHTML="";
+db.projects[current].docs.forEach(d=>{
+docTable.innerHTML+=`<tr>
+<td>${d.n}</td>
+<td class="status ${d.s}">${d.s}</td>
+<td>${d.u}</td>
+<td>${user.role==="Admin"?"✔ Authorized":"View"}</td>
+</tr>`;
+});
 }
 
-function updateTransmittal(i,status){
-  data.projects[currentProject].transmittals[i].status=status;
-  log("Transmittal "+status);
-  renderTransmittals();
-}
-
-function renderTransmittals(){
-  let t=data.projects[currentProject].transmittals;
-  transmittalTable.innerHTML="";
-  t.forEach((x,i)=>{
-    transmittalTable.innerHTML+=`
-      <tr>
-        <td>${x.id}</td>
-        <td>${x.purpose}</td>
-        <td>${x.recipient}</td>
-        <td class="${x.status.toLowerCase()}">${x.status}</td>
-        <td>
-          ${user.role==="Admin"?
-            `<button onclick="updateTransmittal(${i},'Approved')">Approve</button>
-             <button onclick="updateTransmittal(${i},'Rejected')">Reject</button>`:""}
-        </td>
-      </tr>`;
-  })
+function renderTr(){
+trTable.innerHTML="";
+db.projects[current].trs.forEach((t,i)=>{
+trTable.innerHTML+=`<tr>
+<td>${t.id}</td><td>${t.p}</td><td>${t.r}</td>
+<td>${t.st}</td>
+<td>${user.role==="Admin"&&t.st==="Pending"?`<button onclick="approveTr(${i})">Approve</button>`:""}</td>
+</tr>`;
+});
 }
 
 function renderAudit(){
-  auditLog.innerHTML="";
-  data.projects[currentProject].audit.forEach(a=>auditLog.innerHTML+=`<div class="log">${a}</div>`)
+auditLog.innerHTML="";
+db.projects[current].audit.forEach(a=>auditLog.innerHTML+=`<div class="log">${a}</div>`);
 }
 
-function renderAll(){
-  renderIssues();renderTransmittals();renderAudit();
-}
+function renderAll(){renderIssues();renderDocs();renderTr();renderAudit()}
 </script>
 
 </body>
