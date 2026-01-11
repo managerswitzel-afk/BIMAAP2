@@ -9,7 +9,7 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .hidden{display:none}
 .center{height:100vh;display:flex;align-items:center;justify-content:center}
 .card{background:#fff;padding:20px;width:380px;border-radius:6px}
-input,select,textarea,button{width:100%;padding:8px;margin:6px 0}
+input,select,button{width:100%;padding:8px;margin:6px 0}
 button{cursor:pointer}
 .app{display:flex;height:100vh}
 .sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
@@ -84,8 +84,8 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
 <h4>Add Deliverable (Admin)</h4>
 <select id="eirStage"></select>
 <input id="eirName" placeholder="Deliverable Name">
-<input id="eirDiscipline" placeholder="Discipline (ARC/STR/MEP)">
-<input id="eirFormat" placeholder="Format (PDF/IFC/RVT)">
+<input id="eirDiscipline" placeholder="Discipline">
+<input id="eirFormat" placeholder="Format">
 <input id="eirResp" placeholder="Responsible Party">
 <button onclick="addDeliverable()">Add Deliverable</button>
 </div>
@@ -110,4 +110,130 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
 </div>
 
 <script>
-let user={},data=JSON.parse(localStorage.getItem("cde
+let user={}
+let db=JSON.parse(localStorage.getItem("cde")) || {projects:{}}
+let currentProject=null
+const stages=["Stage 0","Stage 1","Stage 2","Stage 3","Stage 4","Stage 5","Stage 6"]
+
+function save(){localStorage.setItem("cde",JSON.stringify(db))}
+
+function log(msg){
+  db.projects[currentProject].audit.push(new Date().toLocaleString()+" - "+msg)
+  save(); renderAudit()
+}
+
+function login(){
+  user.name=username.value
+  user.role=role.value
+  loginDiv(true)
+}
+
+function logout(){location.reload()}
+
+function loginDiv(ok){
+  document.getElementById("login").classList.toggle("hidden",ok)
+  document.getElementById("app").classList.toggle("hidden",!ok)
+  userInfo.innerText=user.name
+  roleBadge.innerText=user.role
+  projectAdmin.style.display=user.role==="Admin"?"block":"none"
+  loadProjects()
+}
+
+function loadProjects(){
+  projectSelect.innerHTML=""
+  Object.keys(db.projects).forEach(p=>{
+    let o=document.createElement("option")
+    o.value=p;o.text=p
+    projectSelect.appendChild(o)
+  })
+  if(projectSelect.value) switchProject()
+}
+
+function addProject(){
+  const p=newProject.value
+  if(!p) return
+  db.projects[p]={
+    idm:stages.map(s=>({stage:s,status:"Open"})),
+    eir:[],
+    audit:[]
+  }
+  save(); newProject.value=""
+  loadProjects()
+}
+
+function switchProject(){
+  currentProject=projectSelect.value
+  renderAll()
+}
+
+function view(v){
+  ["idm","eir","audit"].forEach(x=>{
+    document.getElementById(x+"View").classList.toggle("hidden",x!==v)
+  })
+}
+
+function renderAll(){
+  renderIDM(); renderEIR(); renderAudit()
+}
+
+function renderIDM(){
+  idmTable.innerHTML=""
+  db.projects[currentProject].idm.forEach(s=>{
+    idmTable.innerHTML+=`<tr><td>${s.stage}</td><td>${s.status}</td></tr>`
+  })
+  eirStage.innerHTML=stages.map(s=>`<option>${s}</option>`).join("")
+}
+
+function addDeliverable(){
+  const d={
+    stage:eirStage.value,
+    name:eirName.value,
+    discipline:eirDiscipline.value,
+    format:eirFormat.value,
+    resp:eirResp.value,
+    status:"NotUploaded"
+  }
+  db.projects[currentProject].eir.push(d)
+  log("Deliverable added: "+d.name)
+  save(); renderEIR()
+}
+
+function nextStatus(d){
+  if(d.status==="NotUploaded" && user.role==="Staff") d.status="Uploaded"
+  else if(d.status==="Uploaded" && user.role==="Admin") d.status="Reviewed"
+  else if(d.status==="Reviewed" && user.role==="Admin") d.status="Accepted"
+  else return
+  log("Status changed: "+d.name+" → "+d.status)
+  save(); renderEIR()
+}
+
+function renderEIR(){
+  eirAdmin.style.display=user.role==="Admin"?"block":"none"
+  eirTable.innerHTML=""
+  db.projects[currentProject].eir.forEach(d=>{
+    let btn=""
+    if(d.status!=="Accepted"){
+      btn=`<button onclick='nextStatus(${JSON.stringify(d).replace(/"/g,"&quot;")})'>Next</button>`
+    }
+    eirTable.innerHTML+=`
+    <tr>
+      <td>${d.stage}</td>
+      <td>${d.name}</td>
+      <td>${d.discipline}</td>
+      <td>${d.format}</td>
+      <td>${d.resp}</td>
+      <td class="${d.status}">${d.status}</td>
+      <td>${btn}</td>
+    </tr>`
+  })
+}
+
+function renderAudit(){
+  auditLog.innerHTML=""
+  db.projects[currentProject].audit.forEach(a=>{
+    auditLog.innerHTML+=`<div class="log">${a}</div>`
+  })
+}
+</script>
+</body>
+</html>
