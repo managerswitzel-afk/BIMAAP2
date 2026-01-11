@@ -23,6 +23,7 @@ table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px;text-align:left}
 small{color:#6b7280}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
+a{color:#2563eb;text-decoration:none}
 </style>
 </head>
 
@@ -33,9 +34,7 @@ small{color:#6b7280}
   <div class="card">
     <h2>SWITZELINT LOGIN</h2>
     <input id="username" placeholder="Username">
-    <input id="password" type="password">
     <button onclick="login()">Login / Register</button>
-    <p id="msg" style="color:red"></p>
   </div>
 </div>
 
@@ -59,9 +58,8 @@ small{color:#6b7280}
     <button onclick="view('dashboard')">Dashboard</button>
     <button onclick="view('tasks')">Tasks</button>
     <button onclick="view('documents')">ISO Docs</button>
+    <button onclick="view('files')">Files</button>
     <button onclick="view('audit')">Audit Log</button>
-    <button onclick="view('kpi')">KPI</button>
-    <button onclick="view('team')">Team</button>
     <button onclick="logout()">Logout</button>
   </div>
 
@@ -73,63 +71,49 @@ small{color:#6b7280}
       <div class="grid">
         <div class="box"><h4>Tasks</h4><div class="stat" id="taskCount">0</div></div>
         <div class="box"><h4>Documents</h4><div class="stat" id="docCount">0</div></div>
-        <div class="box"><h4>Audit Entries</h4><div class="stat" id="auditCount">0</div></div>
-        <div class="box"><h4>LOD Complete</h4><div class="stat" id="lodPercent">0%</div></div>
+        <div class="box"><h4>Files</h4><div class="stat" id="fileCount">0</div></div>
+        <div class="box"><h4>Audit</h4><div class="stat" id="auditCount">0</div></div>
       </div>
     </div>
 
     <!-- TASKS -->
     <div id="tasksView" class="hidden">
       <h2>Tasks</h2>
-      <div id="taskAdmin">
-        <input id="taskInput" placeholder="New task">
-        <button onclick="addTask()">Add Task</button>
-      </div>
+      <input id="taskInput" placeholder="New task">
+      <button onclick="addTask()">Add Task</button>
       <ul id="taskList"></ul>
     </div>
 
     <!-- DOCUMENTS -->
     <div id="documentsView" class="hidden">
       <h2>ISO 19650 Documents</h2>
-      <div id="docAdmin" class="box">
-        <input id="docName" placeholder="Document Name">
-        <select id="docStatus"><option>WIP</option><option>SHARED</option><option>PUBLISHED</option></select>
-        <select id="docSuit"><option>S0</option><option>S1</option><option>A1</option></select>
-        <input id="docRev" placeholder="Revision">
-        <button onclick="addDocument()">Save Document</button>
+      <input id="docName" placeholder="Document Name">
+      <select id="docStatus"><option>WIP</option><option>SHARED</option><option>PUBLISHED</option></select>
+      <button onclick="addDocument()">Save Document</button>
+      <ul id="docList"></ul>
+    </div>
+
+    <!-- FILES -->
+    <div id="filesView" class="hidden">
+      <h2>Project Files</h2>
+
+      <div id="fileAdmin" class="box">
+        <input type="file" id="fileInput">
+        <button onclick="uploadFile()">Upload File</button>
       </div>
+
       <table>
-        <thead><tr><th>Name</th><th>Status</th><th>Suit</th><th>Rev</th><th>User</th><th>Date</th></tr></thead>
-        <tbody id="docTable"></tbody>
+        <thead>
+          <tr><th>Name</th><th>Type</th><th>User</th><th>Date</th><th>Action</th></tr>
+        </thead>
+        <tbody id="fileTable"></tbody>
       </table>
     </div>
 
     <!-- AUDIT -->
     <div id="auditView" class="hidden">
-      <h2>Audit Log (ISO 19650)</h2>
+      <h2>Audit Log</h2>
       <div id="auditList"></div>
-    </div>
-
-    <!-- KPI -->
-    <div id="kpiView" class="hidden">
-      <h2>KPI</h2>
-      <input id="lodTotal" type="number" placeholder="LOD Total">
-      <input id="lodDone" type="number" placeholder="LOD Done">
-      <button onclick="saveLOD()">Save LOD</button>
-    </div>
-
-    <!-- TEAM -->
-    <div id="teamView" class="hidden">
-      <h2>Team</h2>
-      <div id="teamAdmin">
-        <input id="teamUser" placeholder="User">
-        <select id="teamRole"><option>Admin</option><option>Staff</option><option>Client</option></select>
-        <button onclick="addMember()">Save</button>
-      </div>
-      <table>
-        <thead><tr><th>User</th><th>Role</th></tr></thead>
-        <tbody id="teamTable"></tbody>
-      </table>
     </div>
 
   </div>
@@ -140,18 +124,13 @@ let user=null;
 let db=JSON.parse(localStorage.getItem("switzel")||"{}");
 let project=null;
 
+function save(){localStorage.setItem("switzel",JSON.stringify(db))}
 function log(action){
-  if(!project) return;
-  db[project].audit.unshift({
-    user:user.u,
-    action,
-    time:new Date().toLocaleString()
-  });
+  db[project].audit.unshift({user:user.u,action,time:new Date().toLocaleString()});
   save();
 }
 
 function login(){
-  if(!username.value)return;
   user={u:username.value};
   localStorage.setItem("user",JSON.stringify(user));
   start();
@@ -171,89 +150,79 @@ function loginDiv(){
 function logout(){localStorage.clear();location.reload()}
 
 function addProject(){
-  const n=newProject.value.trim();
-  if(!n)return;
-  db[n]={tasks:[],docs:[],team:{},audit:[],kpi:{}};
-  db[n].team[user.u]="Admin";
-  project=n;
+  db[newProject.value]={tasks:[],docs:[],files:[],audit:[],team:{[user.u]:"Admin"}};
+  project=newProject.value;
   log("Project created");
   save();loadProjects();
 }
 
 function loadProjects(){
   projectSelect.innerHTML="";
-  Object.keys(db).forEach(p=>{
-    let o=document.createElement("option");o.text=p;projectSelect.add(o);
-  });
+  Object.keys(db).forEach(p=>projectSelect.add(new Option(p,p)));
   project=project||Object.keys(db)[0];
   projectSelect.value=project;
   render();
 }
 
 function switchProject(){project=projectSelect.value;render()}
-
-function role(){return db[project]?.team[user.u]||"Client"}
+function role(){return db[project].team[user.u]||"Client"}
 
 function view(v){
-  ["dashboard","tasks","documents","audit","kpi","team"].forEach(x=>{
+  ["dashboard","tasks","documents","files","audit"].forEach(x=>{
     document.getElementById(x+"View").classList.add("hidden");
   });
   document.getElementById(v+"View").classList.remove("hidden");
 }
 
 function addTask(){
-  if(role()==="Client")return;
   db[project].tasks.push(taskInput.value);
   log("Task added");
   taskInput.value="";save();render();
 }
 
 function addDocument(){
-  if(role()==="Client")return;
-  db[project].docs.push({
-    name:docName.value,status:docStatus.value,suit:docSuit.value,
-    rev:docRev.value,user:user.u,date:new Date().toLocaleString()
-  });
-  log("Document updated: "+docName.value);
+  db[project].docs.push({name:docName.value});
+  log("Document added: "+docName.value);
   save();render();
 }
 
-function addMember(){
-  if(role()!=="Admin")return;
-  db[project].team[teamUser.value]=teamRole.value;
-  log("Team updated: "+teamUser.value+" → "+teamRole.value);
-  save();render();
-}
-
-function saveLOD(){
-  if(role()==="Client")return;
-  db[project].kpi={lodTotal:+lodTotal.value,lodDone:+lodDone.value};
-  log("LOD KPI updated");
-  save();render();
+function uploadFile(){
+  const f=fileInput.files[0];
+  if(!f)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    db[project].files.push({
+      name:f.name,type:f.type,
+      data:reader.result,
+      user:user.u,
+      date:new Date().toLocaleString()
+    });
+    log("File uploaded: "+f.name);
+    save();render();
+  };
+  reader.readAsDataURL(f);
 }
 
 function render(){
-  if(!project)return;
   projectTitle.innerText=project;
   roleBadge.innerText=role();
   taskList.innerHTML=db[project].tasks.map(t=>`<li>${t}</li>`).join("");
-  docTable.innerHTML=db[project].docs.map(d=>`
-    <tr><td>${d.name}</td><td>${d.status}</td><td>${d.suit}</td>
-    <td>${d.rev}</td><td>${d.user}</td><td><small>${d.date}</small></td></tr>`).join("");
+  docList.innerHTML=db[project].docs.map(d=>`<li>${d.name}</li>`).join("");
+  fileTable.innerHTML=db[project].files.map((f,i)=>`
+    <tr>
+      <td>${f.name}</td>
+      <td>${f.type}</td>
+      <td>${f.user}</td>
+      <td>${f.date}</td>
+      <td><a href="${f.data}" download="${f.name}">Download</a></td>
+    </tr>`).join("");
   auditList.innerHTML=db[project].audit.map(a=>`
     <div class="log"><b>${a.user}</b> — ${a.action}<br><small>${a.time}</small></div>`).join("");
   taskCount.innerText=db[project].tasks.length;
   docCount.innerText=db[project].docs.length;
+  fileCount.innerText=db[project].files.length;
   auditCount.innerText=db[project].audit.length;
-  let k=db[project].kpi;
-  lodPercent.innerText=k.lodTotal?Math.round((k.lodDone/k.lodTotal)*100)+"%":"0%";
-  teamTable.innerHTML=Object.entries(db[project].team).map(([u,r])=>`<tr><td>${u}</td><td>${r}</td></tr>`).join("");
-  docAdmin.style.display=role()==="Client"?"none":"block";
-  taskAdmin.style.display=role()==="Client"?"none":"block";
-  teamAdmin.style.display=role()==="Admin"?"block":"none";
 }
-
-function save(){localStorage.setItem("switzel",JSON.stringify(db))}
 
 const saved=JSON.parse(localStorage.getItem("user"));
 if(saved){user=saved;start();}
