@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <title>SWITZELINT ISO 19650 CDE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <style>
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .hidden{display:none}
@@ -56,6 +58,7 @@ small{color:#6b7280}
 
     <button onclick="view('files')">ISO Files</button>
     <button onclick="view('audit')">Audit Log</button>
+    <button onclick="exportProject()">⬇ Export Project (ZIP)</button>
     <button onclick="logout()">Logout</button>
   </div>
 
@@ -66,10 +69,8 @@ small{color:#6b7280}
       <h2 id="projectTitle"></h2>
 
       <div class="box">
-        <h4>ISO 19650 Naming Format</h4>
-        <small>
-          ORG-PROJ-ZONE-LEVEL-TYPE-ROLE-NUMBER-REV.ext
-        </small>
+        <h4>ISO 19650 Naming</h4>
+        <small>ORG-PROJ-ZONE-LEVEL-TYPE-ROLE-NUMBER-REV.ext</small>
       </div>
 
       <div id="fileAdmin" class="box">
@@ -78,7 +79,6 @@ small{color:#6b7280}
           <option>SHARED</option>
           <option>PUBLISHED</option>
         </select>
-
         <input type="file" id="fileInput">
         <button onclick="uploadFile()">Upload</button>
         <div id="nameError" class="error"></div>
@@ -154,43 +154,24 @@ function view(v){
 }
 
 function validateISO(name){
-  const parts=name.split(".");
-  if(parts.length<2) return "File must have extension";
-
-  const base=parts[0].split("-");
-  if(base.length!==8)
-    return "Must have 8 hyphen-separated fields";
-
-  const [org,proj,zone,level,type,role,num,rev]=base;
-
-  if(!/^[A-Z0-9]{2,5}$/.test(org)) return "Invalid ORG";
-  if(!/^[A-Z0-9]{2,6}$/.test(proj)) return "Invalid PROJ";
-  if(!/^[A-Z0-9]{2,4}$/.test(zone)) return "Invalid ZONE";
-  if(!/^[A-Z0-9]{2,4}$/.test(level)) return "Invalid LEVEL";
-  if(!/^[A-Z]{2}$/.test(type)) return "Invalid TYPE";
-  if(!/^[A-Z]$/.test(role)) return "Invalid ROLE";
-  if(!/^[0-9]{4}$/.test(num)) return "Invalid NUMBER";
-  if(!/^P[0-9]{2}$/.test(rev)) return "Invalid REVISION";
-
+  const base=name.split(".")[0].split("-");
+  if(base.length!==8) return "Invalid ISO structure";
+  if(!/^P\d{2}$/.test(base[7])) return "Invalid revision";
   return null;
 }
 
 function uploadFile(){
   nameError.innerText="";
-  if(role()==="Client") return alert("Read-only access");
+  if(role()==="Client") return alert("Read-only");
 
   const f=fileInput.files[0];
   if(!f) return;
 
   const err=validateISO(f.name.toUpperCase());
-  if(err){
-    nameError.innerText="❌ "+err;
-    log("ISO name rejected: "+f.name);
-    return;
-  }
+  if(err){nameError.innerText="❌ "+err;log("Rejected: "+f.name);return;}
 
   if(role()==="Staff" && fileStage.value==="PUBLISHED")
-    return alert("Only Admin can publish");
+    return alert("Admin only");
 
   const r=new FileReader();
   r.onload=()=>{
@@ -201,10 +182,36 @@ function uploadFile(){
       date:new Date().toLocaleString(),
       data:r.result
     });
-    log("File uploaded ["+fileStage.value+"] "+f.name);
+    log("File uploaded "+f.name);
     save();render();
   };
   r.readAsDataURL(f);
+}
+
+function exportProject(){
+  if(role()!=="Admin") return alert("Admin only");
+
+  const zip=new JSZip();
+  const root=zip.folder(project);
+  const files=root.folder("files");
+
+  db[project].files.forEach(f=>{
+    const content=f.data.split(",")[1];
+    files.file(f.name,content,{base64:true});
+  });
+
+  root.file("audit-log.json",JSON.stringify(db[project].audit,null,2));
+  root.file("project-info.json",JSON.stringify({
+    project,
+    exportedBy:user.u,
+    date:new Date().toISOString(),
+    totalFiles:db[project].files.length
+  },null,2));
+
+  zip.generateAsync({type:"blob"}).then(b=>{
+    saveAs(b,project+"_ISO_EXPORT.zip");
+    log("Project exported as ZIP");
+  });
 }
 
 function render(){
@@ -213,7 +220,7 @@ function render(){
   projectAdmin.classList.toggle("hidden",role()!=="Admin");
   fileAdmin.classList.toggle("hidden",role()==="Client");
 
-  let files=db[project].files.filter(f=>{
+  const files=db[project].files.filter(f=>{
     if(role()==="Client") return f.stage!=="WIP";
     return true;
   });
