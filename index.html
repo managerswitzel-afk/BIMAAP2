@@ -12,40 +12,40 @@ button{background:#2563eb;color:#fff;border:none;padding:6px 12px;border-radius:
 input,select{width:100%;padding:6px;margin-bottom:6px}
 .hidden{display:none}
 .container{padding:20px}
-.grid{display:grid;grid-template-columns:260px 1fr;gap:20px}
+.grid{display:grid;grid-template-columns:280px 1fr;gap:20px}
 .card{background:#fff;padding:12px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
 h4{margin-top:0}
 ul{padding-left:18px}
 .board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .column{background:#eef1f6;padding:10px;border-radius:6px}
 .task{background:#fff;padding:8px;margin-bottom:6px;border-radius:4px;font-size:13px}
-small{color:#555}
+.task select{margin-top:4px}
 .log{font-size:12px;border-bottom:1px solid #ddd;padding:4px 0}
+small{color:#555}
 </style>
 </head>
 
 <body>
 
 <header>
-  <strong>SWITZELINT CDE</strong>
-  <button onclick="logout()">Logout</button>
+<strong>SWITZELINT CDE</strong>
+<button onclick="logout()">Logout</button>
 </header>
 
 <div class="container">
 
 <!-- LOGIN -->
 <div id="login">
-  <div class="card" style="max-width:320px;margin:auto">
-    <h3>Admin Login</h3>
-    <input id="user" placeholder="Username">
-    <input id="pass" type="password" placeholder="Password">
-    <button onclick="login()">Login</button>
-  </div>
+<div class="card" style="max-width:320px;margin:auto">
+<h3>Admin Login</h3>
+<input id="user" placeholder="Username">
+<input id="pass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div>
 </div>
 
 <!-- APP -->
 <div id="app" class="hidden">
-
 <div class="grid">
 
 <!-- LEFT -->
@@ -53,12 +53,17 @@ small{color:#555}
 <h4>Projects</h4>
 <ul id="projectList"></ul>
 
-<h4>User Role</h4>
-<select id="role" onchange="log('Role switched to '+this.value)">
-  <option>Admin</option>
-  <option>BIM Manager</option>
-  <option>Team Member</option>
-</select>
+<input id="newProject" placeholder="New Project Name">
+<button onclick="addProject()">Add Project</button>
+
+<hr>
+
+<h4>Teams</h4>
+<ul id="teamList"></ul>
+<input id="newTeam" placeholder="New Team Name">
+<button onclick="addTeam()">Add Team</button>
+
+<hr>
 
 <h4>Audit Log</h4>
 <div id="audit"></div>
@@ -68,11 +73,10 @@ small{color:#555}
 <div class="card">
 <h2 id="projectTitle"></h2>
 
-<h4>Teams</h4>
-<ul id="teamList"></ul>
-
-<h4>Sprints</h4>
-<ul id="sprintList"></ul>
+<h4>Add Task</h4>
+<input id="taskName" placeholder="Task name">
+<select id="taskTeam"></select>
+<button onclick="addTask()">Add Task</button>
 
 <h4>Kanban Board</h4>
 <div class="board">
@@ -83,10 +87,10 @@ small{color:#555}
 
 <h4>ISO 19650 CDE</h4>
 <ul>
-<li><strong>WIP</strong>: Arch_Model_v1.rvt</li>
-<li><strong>SHARED</strong>: Coord_Model_v2.nwd</li>
-<li><strong>PUBLISHED</strong>: IFC_Final.ifc</li>
-<li><strong>ARCHIVED</strong>: Old_Models.zip</li>
+<li><strong>WIP</strong></li>
+<li><strong>SHARED</strong></li>
+<li><strong>PUBLISHED</strong></li>
+<li><strong>ARCHIVED</strong></li>
 </ul>
 
 </div>
@@ -95,47 +99,24 @@ small{color:#555}
 </div>
 
 <script>
-/* ================= DATA ================= */
-const data={
-projects:[
-{
-name:"PR1 – Office Tower BIM",
-teams:["Architecture","Structure","MEP"],
-sprints:["Design","Coordination","Construction"],
-tasks:[
-{name:"Architectural Model LOD 300",team:"Architecture",status:"todo"},
-{name:"Structural Clash Review",team:"Structure",status:"doing"},
-{name:"MEP Coordination",team:"MEP",status:"done"}
-]
-},
-{
-name:"PR2 – Hospital CDE",
-teams:["BIM Mgmt","Client","Contractor"],
-sprints:["EIR","Tender","Execution"],
-tasks:[
-{name:"EIR Validation",team:"Client",status:"done"},
-{name:"BEP Approval",team:"BIM Mgmt",status:"doing"},
-{name:"Site Model Sync",team:"Contractor",status:"todo"}
-]
-}
-]
-};
+/* ===== STORAGE ===== */
+let data=JSON.parse(localStorage.getItem("switzelint"))||{projects:[]};
+let currentProjectIndex=null;
 
-let currentProject=null;
+function save(){localStorage.setItem("switzelint",JSON.stringify(data));}
 
-/* ================= AUTH ================= */
+/* ===== AUTH ===== */
 function login(){
 if(user.value==="Admin" && pass.value==="Admin"){
 loginDiv.style.display="none";
 app.classList.remove("hidden");
 renderProjects();
-selectProject(0);
 log("Admin logged in");
-}else alert("Wrong credentials");
+}else alert("Invalid login");
 }
-function logout(){location.reload();}
+function logout(){localStorage.removeItem("switzelint");location.reload();}
 
-/* ================= UI ================= */
+/* ===== PROJECTS ===== */
 function renderProjects(){
 projectList.innerHTML="";
 data.projects.forEach((p,i)=>{
@@ -143,31 +124,81 @@ projectList.innerHTML+=`<li><button onclick="selectProject(${i})">${p.name}</but
 });
 }
 
+function addProject(){
+if(!newProject.value)return;
+data.projects.push({name:newProject.value,teams:[],tasks:[]});
+newProject.value="";
+save();renderProjects();
+log("Project added");
+}
+
 function selectProject(i){
-currentProject=data.projects[i];
-projectTitle.innerText=currentProject.name;
+currentProjectIndex=i;
+const p=data.projects[i];
+projectTitle.innerText=p.name;
+renderTeams();renderTasks();renderTeamSelect();
+log("Project opened: "+p.name);
+}
+
+/* ===== TEAMS ===== */
+function renderTeams(){
 teamList.innerHTML="";
-currentProject.teams.forEach(t=>teamList.innerHTML+=`<li>${t}</li>`);
-sprintList.innerHTML="";
-currentProject.sprints.forEach(s=>sprintList.innerHTML+=`<li>${s}</li>`);
-renderTasks();
-log("Opened project "+currentProject.name);
+data.projects[currentProjectIndex].teams.forEach(t=>teamList.innerHTML+=`<li>${t}</li>`);
+}
+
+function addTeam(){
+if(!newTeam.value)return;
+data.projects[currentProjectIndex].teams.push(newTeam.value);
+newTeam.value="";
+save();renderTeams();renderTeamSelect();
+log("Team added");
+}
+
+function renderTeamSelect(){
+taskTeam.innerHTML="";
+data.projects[currentProjectIndex].teams.forEach(t=>{
+taskTeam.innerHTML+=`<option>${t}</option>`;
+});
+}
+
+/* ===== TASKS ===== */
+function addTask(){
+if(!taskName.value)return;
+data.projects[currentProjectIndex].tasks.push({
+name:taskName.value,team:taskTeam.value,status:"todo"
+});
+taskName.value="";
+save();renderTasks();
+log("Task added");
 }
 
 function renderTasks(){
 todo.innerHTML=doing.innerHTML=done.innerHTML="";
-currentProject.tasks.forEach(t=>{
-document.getElementById(t.status).innerHTML+=
-`<div class="task">${t.name}<br><small>${t.team}</small></div>`;
+data.projects[currentProjectIndex].tasks.forEach((t,i)=>{
+document.getElementById(t.status).innerHTML+=`
+<div class="task">
+${t.name}<br><small>${t.team}</small>
+<select onchange="moveTask(${i},this.value)">
+<option ${t.status=="todo"?"selected":""}>todo</option>
+<option ${t.status=="doing"?"selected":""}>doing</option>
+<option ${t.status=="done"?"selected":""}>done</option>
+</select>
+</div>`;
 });
 }
 
-/* ================= AUDIT ================= */
-function log(msg){
-audit.innerHTML=`<div class="log">${new Date().toLocaleTimeString()} – ${msg}</div>`+audit.innerHTML;
+function moveTask(i,status){
+data.projects[currentProjectIndex].tasks[i].status=status;
+save();renderTasks();
+log("Task moved to "+status);
 }
 
-/* ================= INIT ================= */
+/* ===== AUDIT ===== */
+function log(msg){
+audit.innerHTML=`<div class="log">${new Date().toLocaleTimeString()} — ${msg}</div>`+audit.innerHTML;
+}
+
+/* ===== INIT ===== */
 const loginDiv=document.getElementById("login");
 const app=document.getElementById("app");
 </script>
