@@ -1,239 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>SWITZELINT | ISO 19650 CDE</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body{margin:0;font-family:Arial;background:#f3f4f6}
-.hidden{display:none}
-.center{height:100vh;display:flex;align-items:center;justify-content:center}
-.card{background:#fff;padding:20px;width:380px;border-radius:6px}
-input,select,button{width:100%;padding:8px;margin:6px 0}
-button{cursor:pointer}
-.app{display:flex;height:100vh}
-.sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
-.sidebar button{background:#374151;color:#fff;border:none;margin:4px 0}
-.main{flex:1;padding:20px;overflow:auto}
-.badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px}
-.box{background:#fff;padding:12px;margin:10px 0;border-radius:6px}
-table{width:100%;border-collapse:collapse}
-td,th{border:1px solid #ddd;padding:6px;text-align:center}
-.log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
-.Accepted{color:#16a34a;font-weight:bold}
-.Reviewed{color:#2563eb;font-weight:bold}
-.Uploaded{color:#f59e0b;font-weight:bold}
-.NotUploaded{color:#6b7280;font-weight:bold}
-</style>
+  <meta charset="UTF-8" />
+  <title>SWITZELINT CDE</title>
+  <style>
+    body { font-family: Arial; margin: 0; background: #f4f6f8; }
+    header { background: #0a1e3f; color: white; padding: 10px 20px; }
+    nav button { margin-right: 10px; }
+    .container { padding: 20px; }
+    .hidden { display: none; }
+    .board { display: flex; gap: 10px; }
+    .column { background: #fff; padding: 10px; width: 33%; border-radius: 6px; }
+    .task { background: #e3e7ee; padding: 8px; margin-bottom: 6px; border-radius: 4px; }
+  </style>
 </head>
 
 <body>
 
+<header>
+  <h2>SWITZELINT CDE</h2>
+  <button onclick="logout()">Logout</button>
+</header>
+
+<div class="container">
+
 <!-- LOGIN -->
-<div id="login" class="center">
-  <div class="card">
-    <h2>SWITZELINT CDE</h2>
-    <input id="username" placeholder="Username">
-    <select id="role">
-      <option>Admin</option>
-      <option>Staff</option>
-      <option>Client</option>
-    </select>
-    <button onclick="login()">Login</button>
-  </div>
+<div id="login">
+  <h3>Admin Login</h3>
+  <input id="user" placeholder="Username"><br><br>
+  <input id="pass" type="password" placeholder="Password"><br><br>
+  <button onclick="login()">Login</button>
 </div>
 
 <!-- APP -->
-<div id="app" class="app hidden">
-  <div class="sidebar">
-    <h3>SWITZELINT</h3>
-    <p id="userInfo"></p>
-    <span class="badge" id="roleBadge"></span>
+<div id="app" class="hidden">
+
+  <h3>Projects</h3>
+  <input id="projectName" placeholder="New Project Name">
+  <button onclick="addProject()">Add Project</button>
+  <ul id="projectList"></ul>
+
+  <hr>
+
+  <div id="projectArea" class="hidden">
+
+    <h3 id="currentProject"></h3>
+
+    <!-- TEAMS -->
+    <h4>Teams</h4>
+    <input id="teamName" placeholder="Team Name">
+    <button onclick="addTeam()">Add Team</button>
+    <ul id="teamList"></ul>
+
     <hr>
 
-    <select id="projectSelect" onchange="switchProject()"></select>
+    <!-- SPRINT -->
+    <h4>Sprint</h4>
+    <input id="sprintName" placeholder="Sprint Name">
+    <button onclick="addSprint()">Add Sprint</button>
+    <ul id="sprintList"></ul>
 
-    <div id="projectAdmin">
-      <input id="newProject" placeholder="New Project Name">
-      <button onclick="addProject()">Add Project</button>
+    <hr>
+
+    <!-- TASK -->
+    <h4>Add Task</h4>
+    <input id="taskName" placeholder="Task Name">
+    <select id="taskTeam"></select>
+    <button onclick="addTask()">Add Task</button>
+
+    <h4>Kanban Board</h4>
+    <div class="board">
+      <div class="column"><h5>To Do</h5><div id="todo"></div></div>
+      <div class="column"><h5>Doing</h5><div id="doing"></div></div>
+      <div class="column"><h5>Done</h5><div id="done"></div></div>
     </div>
-
-    <hr>
-    <button onclick="view('idm')">🧱 IDM</button>
-    <button onclick="view('eir')">📘 EIR</button>
-    <button onclick="view('audit')">🧾 Audit</button>
-    <button onclick="logout()">Logout</button>
-  </div>
-
-  <div class="main">
-
-<!-- IDM -->
-<div id="idmView">
-<h2>IDM Stages</h2>
-<table>
-<tr><th>Stage</th><th>Status</th></tr>
-<tbody id="idmTable"></tbody>
-</table>
-</div>
-
-<!-- EIR -->
-<div id="eirView" class="hidden">
-<h2>Exchange Information Requirements</h2>
-
-<div class="box" id="eirAdmin">
-<h4>Add Deliverable (Admin)</h4>
-<select id="eirStage"></select>
-<input id="eirName" placeholder="Deliverable Name">
-<input id="eirDiscipline" placeholder="Discipline">
-<input id="eirFormat" placeholder="Format">
-<input id="eirResp" placeholder="Responsible Party">
-<button onclick="addDeliverable()">Add Deliverable</button>
-</div>
-
-<table>
-<tr>
-<th>Stage</th><th>Name</th><th>Discipline</th>
-<th>Format</th><th>Responsible</th>
-<th>Status</th><th>Action</th>
-</tr>
-<tbody id="eirTable"></tbody>
-</table>
-</div>
-
-<!-- AUDIT -->
-<div id="auditView" class="hidden">
-<h2>Audit Trail</h2>
-<div id="auditLog"></div>
-</div>
 
   </div>
 </div>
 
 <script>
-let user={}
-let db=JSON.parse(localStorage.getItem("cde")) || {projects:{}}
-let currentProject=null
-const stages=["Stage 0","Stage 1","Stage 2","Stage 3","Stage 4","Stage 5","Stage 6"]
-
-function save(){localStorage.setItem("cde",JSON.stringify(db))}
-
-function log(msg){
-  db.projects[currentProject].audit.push(new Date().toLocaleString()+" - "+msg)
-  save(); renderAudit()
+/* ---------- AUTH ---------- */
+function login() {
+  if (user.value === "Admin" && pass.value === "Admin") {
+    loginDiv.style.display = "none";
+    app.classList.remove("hidden");
+    load();
+  } else alert("Wrong login");
 }
 
-function login(){
-  user.name=username.value
-  user.role=role.value
-  loginDiv(true)
+function logout() {
+  location.reload();
 }
 
-function logout(){location.reload()}
+/* ---------- DATA ---------- */
+let data = JSON.parse(localStorage.getItem("switzelint")) || { projects: [] };
+let currentProject = null;
 
-function loginDiv(ok){
-  document.getElementById("login").classList.toggle("hidden",ok)
-  document.getElementById("app").classList.toggle("hidden",!ok)
-  userInfo.innerText=user.name
-  roleBadge.innerText=user.role
-  projectAdmin.style.display=user.role==="Admin"?"block":"none"
-  loadProjects()
+function save() {
+  localStorage.setItem("switzelint", JSON.stringify(data));
 }
 
-function loadProjects(){
-  projectSelect.innerHTML=""
-  Object.keys(db.projects).forEach(p=>{
-    let o=document.createElement("option")
-    o.value=p;o.text=p
-    projectSelect.appendChild(o)
-  })
-  if(projectSelect.value) switchProject()
+/* ---------- PROJECTS ---------- */
+function addProject() {
+  data.projects.push({ name: projectName.value, teams: [], tasks: [], sprints: [] });
+  projectName.value = "";
+  save(); renderProjects();
 }
 
-function addProject(){
-  const p=newProject.value
-  if(!p) return
-  db.projects[p]={
-    idm:stages.map(s=>({stage:s,status:"Open"})),
-    eir:[],
-    audit:[]
-  }
-  save(); newProject.value=""
-  loadProjects()
+function selectProject(i) {
+  currentProject = data.projects[i];
+  projectArea.classList.remove("hidden");
+  currentProjectEl.innerText = currentProject.name;
+  renderTeams(); renderTasks(); renderSprints();
 }
 
-function switchProject(){
-  currentProject=projectSelect.value
-  renderAll()
+function renderProjects() {
+  projectList.innerHTML = "";
+  data.projects.forEach((p, i) => {
+    projectList.innerHTML += `<li><button onclick="selectProject(${i})">${p.name}</button></li>`;
+  });
 }
 
-function view(v){
-  ["idm","eir","audit"].forEach(x=>{
-    document.getElementById(x+"View").classList.toggle("hidden",x!==v)
-  })
+/* ---------- TEAMS ---------- */
+function addTeam() {
+  currentProject.teams.push(teamName.value);
+  teamName.value = "";
+  save(); renderTeams();
 }
 
-function renderAll(){
-  renderIDM(); renderEIR(); renderAudit()
+function renderTeams() {
+  teamList.innerHTML = "";
+  taskTeam.innerHTML = "";
+  currentProject.teams.forEach(t => {
+    teamList.innerHTML += `<li>${t}</li>`;
+    taskTeam.innerHTML += `<option>${t}</option>`;
+  });
 }
 
-function renderIDM(){
-  idmTable.innerHTML=""
-  db.projects[currentProject].idm.forEach(s=>{
-    idmTable.innerHTML+=`<tr><td>${s.stage}</td><td>${s.status}</td></tr>`
-  })
-  eirStage.innerHTML=stages.map(s=>`<option>${s}</option>`).join("")
+/* ---------- SPRINT ---------- */
+function addSprint() {
+  currentProject.sprints.push(sprintName.value);
+  sprintName.value = "";
+  save(); renderSprints();
 }
 
-function addDeliverable(){
-  const d={
-    stage:eirStage.value,
-    name:eirName.value,
-    discipline:eirDiscipline.value,
-    format:eirFormat.value,
-    resp:eirResp.value,
-    status:"NotUploaded"
-  }
-  db.projects[currentProject].eir.push(d)
-  log("Deliverable added: "+d.name)
-  save(); renderEIR()
+function renderSprints() {
+  sprintList.innerHTML = "";
+  currentProject.sprints.forEach(s => sprintList.innerHTML += `<li>${s}</li>`);
 }
 
-function nextStatus(d){
-  if(d.status==="NotUploaded" && user.role==="Staff") d.status="Uploaded"
-  else if(d.status==="Uploaded" && user.role==="Admin") d.status="Reviewed"
-  else if(d.status==="Reviewed" && user.role==="Admin") d.status="Accepted"
-  else return
-  log("Status changed: "+d.name+" → "+d.status)
-  save(); renderEIR()
+/* ---------- TASKS ---------- */
+function addTask() {
+  currentProject.tasks.push({ name: taskName.value, team: taskTeam.value, status: "todo" });
+  taskName.value = "";
+  save(); renderTasks();
 }
 
-function renderEIR(){
-  eirAdmin.style.display=user.role==="Admin"?"block":"none"
-  eirTable.innerHTML=""
-  db.projects[currentProject].eir.forEach(d=>{
-    let btn=""
-    if(d.status!=="Accepted"){
-      btn=`<button onclick='nextStatus(${JSON.stringify(d).replace(/"/g,"&quot;")})'>Next</button>`
-    }
-    eirTable.innerHTML+=`
-    <tr>
-      <td>${d.stage}</td>
-      <td>${d.name}</td>
-      <td>${d.discipline}</td>
-      <td>${d.format}</td>
-      <td>${d.resp}</td>
-      <td class="${d.status}">${d.status}</td>
-      <td>${btn}</td>
-    </tr>`
-  })
+function moveTask(i, status) {
+  currentProject.tasks[i].status = status;
+  save(); renderTasks();
 }
 
-function renderAudit(){
-  auditLog.innerHTML=""
-  db.projects[currentProject].audit.forEach(a=>{
-    auditLog.innerHTML+=`<div class="log">${a}</div>`
-  })
+function renderTasks() {
+  todo.innerHTML = doing.innerHTML = done.innerHTML = "";
+  currentProject.tasks.forEach((t, i) => {
+    let html = `<div class="task">${t.name}<br><small>${t.team}</small><br>
+      <button onclick="moveTask(${i},'todo')">ToDo</button>
+      <button onclick="moveTask(${i},'doing')">Doing</button>
+      <button onclick="moveTask(${i},'done')">Done</button></div>`;
+    document.getElementById(t.status).innerHTML += html;
+  });
 }
+
+/* ---------- INIT ---------- */
+function load() { renderProjects(); }
+
+const loginDiv = document.getElementById("login");
+const app = document.getElementById("app");
+const currentProjectEl = document.getElementById("currentProject");
 </script>
+
 </body>
 </html>
