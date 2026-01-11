@@ -13,7 +13,7 @@ body{margin:0;font-family:Arial;background:#f3f4f6}
 .hidden{display:none}
 .center{height:100vh;display:flex;align-items:center;justify-content:center}
 .card{background:#fff;padding:20px;width:380px;border-radius:6px}
-input,select,button{width:100%;padding:8px;margin:6px 0}
+input,select,textarea,button{width:100%;padding:8px;margin:6px 0}
 button{cursor:pointer}
 .app{display:flex;height:100vh}
 .sidebar{width:260px;background:#1f2933;color:#fff;padding:20px}
@@ -30,6 +30,9 @@ td,th{border:1px solid #ddd;padding:6px}
 .error{color:#dc2626;font-size:13px}
 .superseded{opacity:0.5}
 small{color:#6b7280}
+.issue-open{color:#dc2626;font-weight:bold}
+.issue-closed{color:#16a34a;font-weight:bold}
+.issue-answered{color:#2563eb;font-weight:bold}
 </style>
 </head>
 
@@ -50,7 +53,6 @@ small{color:#6b7280}
     <h3>SWITZELINT</h3>
     <p id="userInfo"></p>
     <span class="badge" id="roleBadge"></span>
-
     <hr>
 
     <select id="projectSelect" onchange="switchProject()"></select>
@@ -61,10 +63,10 @@ small{color:#6b7280}
     </div>
 
     <hr>
-
     <button onclick="view('dashboard')">📊 KPI Dashboard</button>
-    <button onclick="view('files')">ISO Files</button>
-    <button onclick="view('audit')">Audit Log</button>
+    <button onclick="view('files')">📁 ISO Files</button>
+    <button onclick="view('issues')">📌 Issues / RFIs</button>
+    <button onclick="view('audit')">🧾 Audit Log</button>
     <button onclick="exportProject()">⬇ Export Project</button>
     <button onclick="logout()">Logout</button>
   </div>
@@ -80,179 +82,8 @@ small{color:#6b7280}
     <!-- FILES -->
     <div id="filesView" class="hidden">
       <h2 id="projectTitle"></h2>
-
-      <div class="box">
-        <small>ORG-PROJ-ZONE-LEVEL-TYPE-ROLE-NUMBER-P##.ext</small>
-      </div>
+      <div class="box"><small>ORG-PROJ-ZONE-LEVEL-TYPE-ROLE-NUMBER-P##.ext</small></div>
 
       <div id="fileAdmin" class="box">
-        <select id="fileStage">
-          <option>WIP</option>
-          <option>SHARED</option>
-          <option>PUBLISHED</option>
-        </select>
-        <input type="file" id="fileInput">
-        <button onclick="uploadFile()">Upload</button>
-        <div id="nameError" class="error"></div>
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Stage</th>
-            <th>Revision</th>
-            <th>Status</th>
-            <th>User</th>
-            <th>Date</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="fileTable"></tbody>
-      </table>
-    </div>
-
-    <!-- AUDIT -->
-    <div id="auditView" class="hidden">
-      <h2>Audit Log</h2>
-      <div id="auditList"></div>
-    </div>
-
-  </div>
-</div>
-
-<script>
-let user=null;
-let db=JSON.parse(localStorage.getItem("switzel")||"{}");
-let project=null;
-
-function save(){localStorage.setItem("switzel",JSON.stringify(db))}
-function role(){return db[project].team[user.u]||"Client"}
-function log(action){
-  db[project].audit.unshift({user:user.u,role:role(),action,time:new Date().toLocaleString()});
-  save();
-}
-
-function login(){user={u:username.value};localStorage.setItem("user",JSON.stringify(user));start()}
-function start(){loginDiv();loadProjects()}
-function loginDiv(){login.classList.add("hidden");app.classList.remove("hidden");userInfo.innerText=user.u}
-function logout(){localStorage.clear();location.reload()}
-
-function addProject(){
-  db[newProject.value]={files:[],audit:[],team:{[user.u]:"Admin"}};
-  project=newProject.value;log("Project created");save();loadProjects();
-}
-
-function loadProjects(){
-  projectSelect.innerHTML="";
-  Object.keys(db).forEach(p=>projectSelect.add(new Option(p,p)));
-  project=project||Object.keys(db)[0];
-  projectSelect.value=project;render();
-}
-
-function switchProject(){project=projectSelect.value;render()}
-function view(v){
-  dashboardView.classList.add("hidden");
-  filesView.classList.add("hidden");
-  auditView.classList.add("hidden");
-  document.getElementById(v+"View").classList.remove("hidden");
-}
-
-function validateISO(name){
-  const b=name.split(".")[0].split("-");
-  if(b.length!==8) return "Invalid ISO structure";
-  if(!/^P\d{2}$/.test(b[7])) return "Invalid revision";
-  return null;
-}
-
-function baseName(name){
-  const p=name.split("-");
-  p.pop();
-  return p.join("-");
-}
-
-function revision(name){return name.split("-").pop().split(".")[0]}
-
-function uploadFile(){
-  if(role()==="Client")return;
-  const f=fileInput.files[0]; if(!f)return;
-  const name=f.name.toUpperCase();
-  const err=validateISO(name);
-  if(err){nameError.innerText=err;return;}
-
-  const base=baseName(name);
-  db[project].files.forEach(x=>{
-    if(baseName(x.name)===base){x.superseded=true}
-  });
-
-  const r=new FileReader();
-  r.onload=()=>{
-    db[project].files.push({
-      name,stage:fileStage.value,user:user.u,
-      date:new Date().toLocaleString(),
-      data:r.result,superseded:false
-    });
-    log("Uploaded revision "+revision(name));
-    save();render();
-  };
-  r.readAsDataURL(f);
-}
-
-function exportProject(){
-  if(role()!=="Admin")return;
-  const zip=new JSZip();
-  const root=zip.folder(project);
-  const files=root.folder("files");
-  db[project].files.forEach(f=>{
-    files.file(f.name,f.data.split(",")[1],{base64:true});
-  });
-  root.file("audit-log.json",JSON.stringify(db[project].audit,null,2));
-  zip.generateAsync({type:"blob"}).then(b=>saveAs(b,project+"_ISO_EXPORT.zip"));
-}
-
-function render(){
-  roleBadge.innerText=role();
-  projectAdmin.classList.toggle("hidden",role()!=="Admin");
-  fileAdmin.classList.toggle("hidden",role()==="Client");
-  projectTitle.innerText=project;
-
-  const files=db[project].files;
-  const visible=files.filter(f=>{
-    if(role()==="Client") return !f.superseded && f.stage!=="WIP";
-    return true;
-  });
-
-  fileTable.innerHTML=visible.map(f=>`
-    <tr class="${f.superseded?'superseded':''}">
-      <td>${f.name}</td>
-      <td>${f.stage}</td>
-      <td>${revision(f.name)}</td>
-      <td>${f.superseded?"Superseded":"Current"}</td>
-      <td>${f.user}</td>
-      <td>${f.date}</td>
-      <td><a href="${f.data}" download>Download</a></td>
-    </tr>`).join("");
-
-  auditList.innerHTML=db[project].audit.map(a=>`
-    <div class="log"><b>${a.user}</b> — ${a.action}<br><small>${a.time}</small></div>`).join("");
-
-  renderKPIs();
-}
-
-function renderKPIs(){
-  const files=db[project].files.filter(f=>!f.superseded);
-  const total=files.length;
-  const pub=files.filter(f=>f.stage==="PUBLISHED").length;
-  kpiGrid.innerHTML=`
-    <div class="kpi"><small>Active Files</small><span>${total}</span></div>
-    <div class="kpi"><small>Published</small><span>${pub}</span></div>
-    <div class="kpi"><small>Maturity</small><span>${total?Math.round(pub/total*100):0}%</span></div>
-  `;
-}
-
-const saved=JSON.parse(localStorage.getItem("user"));
-if(saved){user=saved;start();}
-</script>
-
-</body>
-</html>
+        <select id="fileStage"><option>WIP</option><option>SHARED</option><option>PUBLISHED</option></select>
+        <input type="file" id
