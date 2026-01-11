@@ -28,11 +28,12 @@ table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
 .error{color:#dc2626;font-size:13px}
-.superseded{opacity:0.5}
-small{color:#6b7280}
 .issue-open{color:#dc2626;font-weight:bold}
 .issue-closed{color:#16a34a;font-weight:bold}
 .issue-answered{color:#2563eb;font-weight:bold}
+.approved{color:#16a34a;font-weight:bold}
+.rejected{color:#dc2626;font-weight:bold}
+.pending{color:#f59e0b;font-weight:bold}
 </style>
 </head>
 
@@ -43,6 +44,11 @@ small{color:#6b7280}
   <div class="card">
     <h2>SWITZELINT LOGIN</h2>
     <input id="username" placeholder="Username">
+    <select id="role">
+      <option>Admin</option>
+      <option>Staff</option>
+      <option>Client</option>
+    </select>
     <button onclick="login()">Login / Register</button>
   </div>
 </div>
@@ -63,11 +69,11 @@ small{color:#6b7280}
     </div>
 
     <hr>
-    <button onclick="view('dashboard')">📊 KPI Dashboard</button>
-    <button onclick="view('files')">📁 ISO Files</button>
+    <button onclick="view('dashboard')">📊 Dashboard</button>
     <button onclick="view('issues')">📌 Issues / RFIs</button>
+    <button onclick="view('transmittals')">📤 Transmittals</button>
     <button onclick="view('audit')">🧾 Audit Log</button>
-    <button onclick="exportProject()">⬇ Export Project</button>
+    <button onclick="exportProject()">⬇ Export</button>
     <button onclick="logout()">Logout</button>
   </div>
 
@@ -79,11 +85,154 @@ small{color:#6b7280}
       <div class="grid" id="kpiGrid"></div>
     </div>
 
-    <!-- FILES -->
-    <div id="filesView" class="hidden">
-      <h2 id="projectTitle"></h2>
-      <div class="box"><small>ORG-PROJ-ZONE-LEVEL-TYPE-ROLE-NUMBER-P##.ext</small></div>
+    <!-- ISSUES -->
+    <div id="issuesView" class="hidden">
+      <h2>Issues / RFIs</h2>
+      <div class="box">
+        <input id="issueTitle" placeholder="Issue / RFI title">
+        <select id="issueType"><option>Issue</option><option>RFI</option></select>
+        <select id="issuePriority"><option>Low</option><option>Medium</option><option>High</option></select>
+        <button onclick="addIssue()">Raise</button>
+      </div>
+      <div id="issueList"></div>
+    </div>
 
-      <div id="fileAdmin" class="box">
-        <select id="fileStage"><option>WIP</option><option>SHARED</option><option>PUBLISHED</option></select>
-        <input type="file" id
+    <!-- TRANSMITTALS -->
+    <div id="transmittalsView" class="hidden">
+      <h2>Transmittals</h2>
+
+      <div class="box" id="transmittalAdmin">
+        <input id="trPurpose" placeholder="Purpose (S0, S1, S2...)">
+        <input id="trRecipient" placeholder="Recipient">
+        <button onclick="createTransmittal()">Create Transmittal</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Purpose</th>
+            <th>Recipient</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="transmittalTable"></tbody>
+      </table>
+    </div>
+
+    <!-- AUDIT -->
+    <div id="auditView" class="hidden">
+      <h2>Audit Log</h2>
+      <div id="auditLog"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let user={}, data=JSON.parse(localStorage.getItem("switzelint"))||{projects:{}}, currentProject=null;
+
+function save(){localStorage.setItem("switzelint",JSON.stringify(data))}
+function log(msg){data.projects[currentProject].audit.push(new Date().toISOString()+" – "+msg);save();renderAudit()}
+
+function login(){
+  user.name=username.value;
+  user.role=role.value;
+  if(!data.projects.default){
+    data.projects.default={issues:[],transmittals:[],audit:[]}
+  }
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  userInfo.innerText=user.name;
+  roleBadge.innerText=user.role;
+  loadProjects();
+}
+
+function logout(){location.reload()}
+
+function loadProjects(){
+  projectSelect.innerHTML="";
+  Object.keys(data.projects).forEach(p=>{
+    let o=document.createElement("option");o.text=p;o.value=p;projectSelect.add(o)
+  })
+  currentProject=projectSelect.value;
+  renderAll();
+}
+
+function addProject(){
+  data.projects[newProject.value]={issues:[],transmittals:[],audit:[]};
+  save();loadProjects();
+}
+
+function switchProject(){currentProject=projectSelect.value;renderAll()}
+
+function view(v){
+  ["dashboard","issues","transmittals","audit"].forEach(x=>document.getElementById(x+"View").classList.add("hidden"));
+  document.getElementById(v+"View").classList.remove("hidden");
+}
+
+function addIssue(){
+  let p=data.projects[currentProject];
+  p.issues.push({title:issueTitle.value,type:issueType.value,priority:issuePriority.value,status:"Open"});
+  log("Issue created");
+  renderIssues();
+}
+
+function renderIssues(){
+  let d=data.projects[currentProject];
+  issueList.innerHTML="";
+  d.issues.forEach(i=>{
+    issueList.innerHTML+=`<div class="box">${i.title} — <span class="issue-open">${i.status}</span></div>`;
+  })
+}
+
+function createTransmittal(){
+  let p=data.projects[currentProject];
+  p.transmittals.push({
+    id:"TR-"+(p.transmittals.length+1),
+    purpose:trPurpose.value,
+    recipient:trRecipient.value,
+    status:"Pending"
+  });
+  log("Transmittal issued");
+  renderTransmittals();
+}
+
+function updateTransmittal(i,status){
+  data.projects[currentProject].transmittals[i].status=status;
+  log("Transmittal "+status);
+  renderTransmittals();
+}
+
+function renderTransmittals(){
+  let t=data.projects[currentProject].transmittals;
+  transmittalTable.innerHTML="";
+  t.forEach((x,i)=>{
+    transmittalTable.innerHTML+=`
+      <tr>
+        <td>${x.id}</td>
+        <td>${x.purpose}</td>
+        <td>${x.recipient}</td>
+        <td class="${x.status.toLowerCase()}">${x.status}</td>
+        <td>
+          ${user.role==="Admin"?
+            `<button onclick="updateTransmittal(${i},'Approved')">Approve</button>
+             <button onclick="updateTransmittal(${i},'Rejected')">Reject</button>`:""}
+        </td>
+      </tr>`;
+  })
+}
+
+function renderAudit(){
+  auditLog.innerHTML="";
+  data.projects[currentProject].audit.forEach(a=>auditLog.innerHTML+=`<div class="log">${a}</div>`)
+}
+
+function renderAll(){
+  renderIssues();renderTransmittals();renderAudit();
+}
+</script>
+
+</body>
+</html>
