@@ -24,6 +24,7 @@ td,th{border:1px solid #ddd;padding:6px;text-align:left}
 small{color:#6b7280}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
 a{color:#2563eb;text-decoration:none}
+.tabs button{width:auto;margin-right:6px}
 </style>
 </head>
 
@@ -95,16 +96,27 @@ a{color:#2563eb;text-decoration:none}
 
     <!-- FILES -->
     <div id="filesView" class="hidden">
-      <h2>Project Files</h2>
+      <h2>ISO 19650 Files</h2>
+
+      <div class="tabs">
+        <button onclick="setStage('WIP')">WIP</button>
+        <button onclick="setStage('SHARED')">SHARED</button>
+        <button onclick="setStage('PUBLISHED')">PUBLISHED</button>
+      </div>
 
       <div id="fileAdmin" class="box">
+        <select id="fileStage">
+          <option>WIP</option>
+          <option>SHARED</option>
+          <option>PUBLISHED</option>
+        </select>
         <input type="file" id="fileInput">
         <button onclick="uploadFile()">Upload File</button>
       </div>
 
       <table>
         <thead>
-          <tr><th>Name</th><th>Type</th><th>User</th><th>Date</th><th>Action</th></tr>
+          <tr><th>Name</th><th>Stage</th><th>User</th><th>Date</th><th>Action</th></tr>
         </thead>
         <tbody id="fileTable"></tbody>
       </table>
@@ -123,6 +135,7 @@ a{color:#2563eb;text-decoration:none}
 let user=null;
 let db=JSON.parse(localStorage.getItem("switzel")||"{}");
 let project=null;
+let stageFilter="WIP";
 
 function save(){localStorage.setItem("switzel",JSON.stringify(db))}
 function log(action){
@@ -137,20 +150,19 @@ function login(){
 }
 
 function start(){
-  loginDiv();
-  loadProjects();
-}
-
-function loginDiv(){
   login.classList.add("hidden");
   app.classList.remove("hidden");
   userInfo.innerText=user.u;
+  loadProjects();
 }
 
 function logout(){localStorage.clear();location.reload()}
 
 function addProject(){
-  db[newProject.value]={tasks:[],docs:[],files:[],audit:[],team:{[user.u]:"Admin"}};
+  db[newProject.value]={
+    tasks:[],docs:[],files:[],audit:[],
+    team:{[user.u]:"Admin"}
+  };
   project=newProject.value;
   log("Project created");
   save();loadProjects();
@@ -181,10 +193,12 @@ function addTask(){
 }
 
 function addDocument(){
-  db[project].docs.push({name:docName.value});
-  log("Document added: "+docName.value);
+  db[project].docs.push({name:docName.value,status:docStatus.value});
+  log("Document "+docStatus.value+": "+docName.value);
   save();render();
 }
+
+function setStage(s){stageFilter=s;render()}
 
 function uploadFile(){
   const f=fileInput.files[0];
@@ -192,12 +206,13 @@ function uploadFile(){
   const reader=new FileReader();
   reader.onload=()=>{
     db[project].files.push({
-      name:f.name,type:f.type,
+      name:f.name,
+      stage:fileStage.value,
       data:reader.result,
       user:user.u,
       date:new Date().toLocaleString()
     });
-    log("File uploaded: "+f.name);
+    log("File uploaded ["+fileStage.value+"]: "+f.name);
     save();render();
   };
   reader.readAsDataURL(f);
@@ -206,18 +221,27 @@ function uploadFile(){
 function render(){
   projectTitle.innerText=project;
   roleBadge.innerText=role();
+
   taskList.innerHTML=db[project].tasks.map(t=>`<li>${t}</li>`).join("");
-  docList.innerHTML=db[project].docs.map(d=>`<li>${d.name}</li>`).join("");
-  fileTable.innerHTML=db[project].files.map((f,i)=>`
+  docList.innerHTML=db[project].docs.map(d=>`<li>${d.name} (${d.status})</li>`).join("");
+
+  let visibleFiles=db[project].files.filter(f=>{
+    if(role()==="Client") return f.stage!=="WIP";
+    return f.stage===stageFilter;
+  });
+
+  fileTable.innerHTML=visibleFiles.map(f=>`
     <tr>
       <td>${f.name}</td>
-      <td>${f.type}</td>
+      <td>${f.stage}</td>
       <td>${f.user}</td>
       <td>${f.date}</td>
       <td><a href="${f.data}" download="${f.name}">Download</a></td>
     </tr>`).join("");
+
   auditList.innerHTML=db[project].audit.map(a=>`
     <div class="log"><b>${a.user}</b> — ${a.action}<br><small>${a.time}</small></div>`).join("");
+
   taskCount.innerText=db[project].tasks.length;
   docCount.innerText=db[project].docs.length;
   fileCount.innerText=db[project].files.length;
