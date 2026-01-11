@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <title>SWITZELINT ISO 19650 CDE</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+
 <style>
 body{margin:0;font-family:Arial;background:#f3f4f6}
 .hidden{display:none}
@@ -19,6 +21,9 @@ button{cursor:pointer}
 .main{flex:1;padding:20px;overflow:auto}
 .badge{background:#2563eb;color:#fff;padding:4px 8px;border-radius:4px;font-size:12px}
 .box{background:#fff;padding:12px;margin:10px 0;border-radius:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.kpi{background:#1d4ed8;color:#fff;padding:14px;border-radius:6px}
+.kpi span{font-size:26px;font-weight:bold}
 table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
@@ -56,21 +61,38 @@ small{color:#6b7280}
 
     <hr>
 
+    <button onclick="view('dashboard')">📊 KPI Dashboard</button>
     <button onclick="view('files')">ISO Files</button>
     <button onclick="view('audit')">Audit Log</button>
-    <button onclick="exportProject()">⬇ Export Project (ZIP)</button>
+    <button onclick="exportProject()">⬇ Export Project</button>
     <button onclick="logout()">Logout</button>
   </div>
 
   <div class="main">
 
+    <!-- DASHBOARD -->
+    <div id="dashboardView">
+      <h2>ISO 19650 KPI Dashboard</h2>
+
+      <div class="grid" id="kpiGrid"></div>
+
+      <div class="box">
+        <h4>Files per User</h4>
+        <div id="filesPerUser"></div>
+      </div>
+
+      <div class="box">
+        <h4>Last Activity</h4>
+        <div id="lastActivity"></div>
+      </div>
+    </div>
+
     <!-- FILES -->
-    <div id="filesView">
+    <div id="filesView" class="hidden">
       <h2 id="projectTitle"></h2>
 
       <div class="box">
-        <h4>ISO 19650 Naming</h4>
-        <small>ORG-PROJ-ZONE-LEVEL-TYPE-ROLE-NUMBER-REV.ext</small>
+        <small>ORG-PROJ-ZONE-LEVEL-TYPE-ROLE-NUMBER-P##.ext</small>
       </div>
 
       <div id="fileAdmin" class="box">
@@ -113,26 +135,18 @@ function log(action){
   save();
 }
 
-function login(){
-  user={u:username.value};
-  localStorage.setItem("user",JSON.stringify(user));
-  start();
-}
-
-function start(){
+function login(){user={u:username.value};localStorage.setItem("user",JSON.stringify(user));start()}
+function start(){loginDiv();loadProjects()}
+function loginDiv(){
   login.classList.add("hidden");
   app.classList.remove("hidden");
   userInfo.innerText=user.u;
-  loadProjects();
 }
 
 function logout(){localStorage.clear();location.reload()}
 
 function addProject(){
-  db[newProject.value]={
-    files:[],audit:[],
-    team:{[user.u]:"Admin"}
-  };
+  db[newProject.value]={files:[],audit:[],team:{[user.u]:"Admin"}};
   project=newProject.value;
   log("Project created");
   save();loadProjects();
@@ -148,30 +162,25 @@ function loadProjects(){
 
 function switchProject(){project=projectSelect.value;render()}
 function view(v){
+  dashboardView.classList.add("hidden");
   filesView.classList.add("hidden");
   auditView.classList.add("hidden");
   document.getElementById(v+"View").classList.remove("hidden");
 }
 
 function validateISO(name){
-  const base=name.split(".")[0].split("-");
-  if(base.length!==8) return "Invalid ISO structure";
-  if(!/^P\d{2}$/.test(base[7])) return "Invalid revision";
+  const b=name.split(".")[0].split("-");
+  if(b.length!==8) return "Invalid ISO structure";
+  if(!/^P\d{2}$/.test(b[7])) return "Invalid revision";
   return null;
 }
 
 function uploadFile(){
-  nameError.innerText="";
-  if(role()==="Client") return alert("Read-only");
-
-  const f=fileInput.files[0];
-  if(!f) return;
-
+  if(role()==="Client") return;
+  const f=fileInput.files[0]; if(!f) return;
   const err=validateISO(f.name.toUpperCase());
-  if(err){nameError.innerText="❌ "+err;log("Rejected: "+f.name);return;}
-
-  if(role()==="Staff" && fileStage.value==="PUBLISHED")
-    return alert("Admin only");
+  if(err){nameError.innerText=err;return;}
+  if(role()==="Staff"&&fileStage.value==="PUBLISHED")return alert("Admin only");
 
   const r=new FileReader();
   r.onload=()=>{
@@ -182,63 +191,68 @@ function uploadFile(){
       date:new Date().toLocaleString(),
       data:r.result
     });
-    log("File uploaded "+f.name);
+    log("Uploaded "+f.name);
     save();render();
   };
   r.readAsDataURL(f);
 }
 
 function exportProject(){
-  if(role()!=="Admin") return alert("Admin only");
-
+  if(role()!=="Admin") return;
   const zip=new JSZip();
   const root=zip.folder(project);
   const files=root.folder("files");
-
   db[project].files.forEach(f=>{
-    const content=f.data.split(",")[1];
-    files.file(f.name,content,{base64:true});
+    files.file(f.name,f.data.split(",")[1],{base64:true});
   });
-
   root.file("audit-log.json",JSON.stringify(db[project].audit,null,2));
   root.file("project-info.json",JSON.stringify({
-    project,
-    exportedBy:user.u,
-    date:new Date().toISOString(),
-    totalFiles:db[project].files.length
+    project,exportedBy:user.u,date:new Date().toISOString()
   },null,2));
-
-  zip.generateAsync({type:"blob"}).then(b=>{
-    saveAs(b,project+"_ISO_EXPORT.zip");
-    log("Project exported as ZIP");
-  });
+  zip.generateAsync({type:"blob"}).then(b=>saveAs(b,project+"_ISO_EXPORT.zip"));
 }
 
 function render(){
-  projectTitle.innerText=project;
   roleBadge.innerText=role();
   projectAdmin.classList.toggle("hidden",role()!=="Admin");
   fileAdmin.classList.toggle("hidden",role()==="Client");
+  projectTitle.innerText=project;
 
-  const files=db[project].files.filter(f=>{
-    if(role()==="Client") return f.stage!=="WIP";
-    return true;
-  });
+  const files=db[project].files;
+  const visible=files.filter(f=>role()!=="Client"||f.stage!=="WIP");
 
-  fileTable.innerHTML=files.map(f=>`
-    <tr>
-      <td>${f.name}</td>
-      <td>${f.stage}</td>
-      <td>${f.user}</td>
-      <td>${f.date}</td>
-      <td><a href="${f.data}" download>Download</a></td>
-    </tr>`).join("");
+  fileTable.innerHTML=visible.map(f=>`
+    <tr><td>${f.name}</td><td>${f.stage}</td><td>${f.user}</td><td>${f.date}</td>
+    <td><a href="${f.data}" download>Download</a></td></tr>`).join("");
 
   auditList.innerHTML=db[project].audit.map(a=>`
-    <div class="log">
-      <b>${a.user}</b> (${a.role}) — ${a.action}
-      <br><small>${a.time}</small>
-    </div>`).join("");
+    <div class="log"><b>${a.user}</b> — ${a.action}<br><small>${a.time}</small></div>`).join("");
+
+  renderKPIs();
+}
+
+function renderKPIs(){
+  const files=db[project].files;
+  const total=files.length;
+  const wip=files.filter(f=>f.stage==="WIP").length;
+  const shared=files.filter(f=>f.stage==="SHARED").length;
+  const pub=files.filter(f=>f.stage==="PUBLISHED").length;
+  const pct=total?Math.round(pub/total*100):0;
+
+  kpiGrid.innerHTML=`
+    <div class="kpi"><small>Total Files</small><span>${total}</span></div>
+    <div class="kpi"><small>WIP</small><span>${wip}</span></div>
+    <div class="kpi"><small>Shared</small><span>${shared}</span></div>
+    <div class="kpi"><small>Published</small><span>${pub}</span></div>
+    <div class="kpi"><small>% Published</small><span>${pct}%</span></div>
+  `;
+
+  const perUser={};
+  files.forEach(f=>perUser[f.user]=(perUser[f.user]||0)+1);
+  filesPerUser.innerHTML=Object.entries(perUser)
+    .map(([u,c])=>`<div>${u}: ${c}</div>`).join("");
+
+  lastActivity.innerText=db[project].audit[0]?.time||"No activity";
 }
 
 const saved=JSON.parse(localStorage.getItem("user"));
