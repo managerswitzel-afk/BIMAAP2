@@ -24,8 +24,10 @@ table{width:100%;border-collapse:collapse}
 td,th{border:1px solid #ddd;padding:6px;text-align:center}
 .log{font-size:13px;border-left:4px solid #2563eb;padding-left:8px;margin:6px 0}
 .status{font-weight:bold}
-.S0{color:#6b7280}.S1{color:#2563eb}.S2{color:#16a34a}
-.S3{color:#f59e0b}.S4{color:#dc2626}.A{color:#16a34a}.B{color:#0f172a}
+.Approved{color:#16a34a}
+.Submitted{color:#2563eb}
+.InProgress{color:#f59e0b}
+.NotStarted{color:#6b7280}
 </style>
 </head>
 
@@ -65,7 +67,8 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
     <button onclick="view('issues')">📌 Issues</button>
     <button onclick="view('documents')">📄 Documents</button>
     <button onclick="view('transmittals')">📤 Transmittals</button>
-    <button onclick="view('raci')">🧩 RACI Matrix</button>
+    <button onclick="view('raci')">🧩 RACI</button>
+    <button onclick="view('idm')">🧱 IDM Stages</button>
     <button onclick="view('audit')">🧾 Audit</button>
     <button onclick="logout()">Logout</button>
   </div>
@@ -78,66 +81,14 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
 <div class="grid" id="kpiGrid"></div>
 </div>
 
-<!-- ISSUES -->
-<div id="issuesView" class="hidden">
-<h2>Issues / RFIs</h2>
-<div class="box">
-<input id="issueTitle" placeholder="Title">
-<button onclick="addIssue()">Add</button>
-</div>
-<div id="issueList"></div>
-</div>
-
-<!-- DOCUMENTS -->
-<div id="documentsView" class="hidden">
-<h2>Documents</h2>
-<div class="box" id="docAdmin">
-<input id="docName" placeholder="Document Name">
-<select id="docStatus">
-<option>S0</option><option>S1</option><option>S2</option>
-<option>S3</option><option>S4</option><option>A</option><option>B</option>
-</select>
-<select id="docSuitability">
-<option>WIP</option><option>SHARED</option>
-<option>PUBLISHED</option><option>ARCHIVED</option>
-</select>
-<button onclick="addDocument()">Register</button>
-</div>
-<table>
-<thead><tr><th>Name</th><th>Status</th><th>Suitability</th></tr></thead>
-<tbody id="docTable"></tbody>
-</table>
-</div>
-
-<!-- TRANSMITTALS -->
-<div id="transmittalsView" class="hidden">
-<h2>Transmittals</h2>
-<div class="box">
-<input id="trPurpose" placeholder="Purpose">
-<input id="trRecipient" placeholder="Recipient">
-<button onclick="addTransmittal()">Create</button>
-</div>
-<table>
-<thead><tr><th>ID</th><th>Purpose</th><th>Recipient</th><th>Status</th><th>Action</th></tr></thead>
-<tbody id="trTable"></tbody>
-</table>
-</div>
-
-<!-- RACI -->
-<div id="raciView" class="hidden">
-<h2>RACI Matrix</h2>
+<!-- IDM -->
+<div id="idmView" class="hidden">
+<h2>Information Delivery Milestones</h2>
 <table>
 <thead>
-<tr>
-<th>Role</th>
-<th>Info Mgmt</th>
-<th>BIM Mgmt</th>
-<th>Design</th>
-<th>Construction</th>
-<th>Approval</th>
-</tr>
+<tr><th>Stage</th><th>Status</th><th>Action</th></tr>
 </thead>
-<tbody id="raciTable"></tbody>
+<tbody id="idmTable"></tbody>
 </table>
 </div>
 
@@ -152,8 +103,8 @@ td,th{border:1px solid #ddd;padding:6px;text-align:center}
 
 <script>
 let user={},db=JSON.parse(localStorage.getItem("switzelint"))||{projects:{}},current=null;
-const roles=["Information Manager","BIM Manager","Lead Designer","Contractor","Client"];
-const tasks=["R","A","C","I"];
+const stages=["Stage 0 Strategic","Stage 1 Brief","Stage 2 Concept","Stage 3 Coordination","Stage 4 Technical","Stage 5 Construction","Stage 6 Handover"];
+const statuses=["Not Started","In Progress","Submitted","Approved"];
 
 function save(){localStorage.setItem("switzelint",JSON.stringify(db))}
 function log(m){db.projects[current].audit.push(new Date().toISOString()+" — "+m);save();renderAudit()}
@@ -161,8 +112,8 @@ function log(m){db.projects[current].audit.push(new Date().toISOString()+" — "
 function login(){
 user.name=username.value;user.role=role.value;
 if(!db.projects.Main){
-db.projects.Main={issues:[],docs:[],trs:[],audit:[],raci:{}};
-roles.forEach(r=>db.projects.Main.raci[r]=["I","I","I","I","I"]);
+db.projects.Main={audit:[],idm:{}};
+stages.forEach(s=>db.projects.Main.idm[s]="Not Started");
 }
 login.hidden=true;app.classList.remove("hidden");
 userInfo.innerText=user.name;roleBadge.innerText=user.role;
@@ -177,38 +128,40 @@ current=projectSelect.value;renderAll();
 }
 
 function addProject(){
-db.projects[newProject.value]={issues:[],docs:[],trs:[],audit:[],raci:{}};
-roles.forEach(r=>db.projects[newProject.value].raci[r]=["I","I","I","I","I"]);
+db.projects[newProject.value]={audit:[],idm:{}};
+stages.forEach(s=>db.projects[newProject.value].idm[s]="Not Started");
 save();loadProjects();
 }
 
 function switchProject(){current=projectSelect.value;renderAll()}
 function view(v){
-["dashboard","issues","documents","transmittals","raci","audit"]
-.forEach(x=>document.getElementById(x+"View").classList.add("hidden"));
+["dashboard","idm","audit"].forEach(x=>document.getElementById(x+"View").classList.add("hidden"));
 document.getElementById(v+"View").classList.remove("hidden");
 }
 
-function addIssue(){db.projects[current].issues.push({t:issueTitle.value});log("Issue added");renderIssues()}
-function addDocument(){db.projects[current].docs.push({n:docName.value,s:docStatus.value,u:docSuitability.value});log("Document registered");renderDocs()}
-function addTransmittal(){db.projects[current].trs.push({id:"TR-"+(db.projects[current].trs.length+1),p:trPurpose.value,r:trRecipient.value,st:"Pending"});log("Transmittal created");renderTr()}
-function approveTr(i){db.projects[current].trs[i].st="Approved";log("Transmittal approved");renderTr()}
+function setStage(stage,status){
+db.projects[current].idm[stage]=status;
+log(stage+" set to "+status);
+renderIDM();
+}
 
-function renderIssues(){issueList.innerHTML="";db.projects[current].issues.forEach(i=>issueList.innerHTML+=`<div class="box">${i.t}</div>`)}
-function renderDocs(){docTable.innerHTML="";db.projects[current].docs.forEach(d=>docTable.innerHTML+=`<tr><td>${d.n}</td><td class="status ${d.s}">${d.s}</td><td>${d.u}</td></tr>`)}
-function renderTr(){trTable.innerHTML="";db.projects[current].trs.forEach((t,i)=>trTable.innerHTML+=`<tr><td>${t.id}</td><td>${t.p}</td><td>${t.r}</td><td>${t.st}</td><td>${user.role==="Admin"&&t.st==="Pending"?`<button onclick="approveTr(${i})">Approve</button>`:""}</td></tr>`)}
-function renderRaci(){
-raciTable.innerHTML="";
-roles.forEach(r=>{
-raciTable.innerHTML+=`<tr>
-<td>${r}</td>
-${db.projects[current].raci[r].map((v,i)=>`<td>${user.role==="Admin"?`<select onchange="setRaci('${r}',${i},this.value)">${tasks.map(t=>`<option ${t===v?"selected":""}>${t}</option>`).join("")}</select>`:v}</td>`).join("")}
+function renderIDM(){
+idmTable.innerHTML="";
+Object.entries(db.projects[current].idm).forEach(([s,st])=>{
+idmTable.innerHTML+=`<tr>
+<td>${s}</td>
+<td class="${st.replace(" ","")}">${st}</td>
+<td>${user.role==="Admin"?statuses.map(x=>`<button onclick="setStage('${s}','${x}')">${x}</button>`).join(""):""}</td>
 </tr>`;
 });
 }
-function setRaci(r,i,v){db.projects[current].raci[r][i]=v;log("RACI updated");renderRaci()}
-function renderAudit(){auditLog.innerHTML="";db.projects[current].audit.forEach(a=>auditLog.innerHTML+=`<div class="log">${a}</div>`)}
-function renderAll(){renderIssues();renderDocs();renderTr();renderRaci();renderAudit()}
+
+function renderAudit(){
+auditLog.innerHTML="";
+db.projects[current].audit.forEach(a=>auditLog.innerHTML+=`<div class="log">${a}</div>`);
+}
+
+function renderAll(){renderIDM();renderAudit()}
 </script>
 
 </body>
